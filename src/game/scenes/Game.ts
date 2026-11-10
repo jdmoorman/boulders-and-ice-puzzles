@@ -1,10 +1,11 @@
-import { Scene, Input, GameObjects } from 'phaser';
+import { Scene, Scenes, Input, GameObjects } from 'phaser';
 import { parseLevel, GridPoint } from '../levels/LevelParser';
 import { buildLevel, BuiltLevel, tileCenter } from '../levels/LevelLoader';
 import { LEVELS } from '../levels/levelList';
 import { resolveMove, Direction } from '../movement/Movement';
 import { MOVEMENT } from '../settings';
 import { LevelCompleteData } from './LevelComplete';
+import { PauseMenuData } from './PauseMenu';
 
 const DIRECTIONS: readonly Direction[] = ['up', 'down', 'left', 'right'];
 
@@ -68,13 +69,15 @@ export class Game extends Scene
                     this.scene.restart({ levelIndex: this.levelIndex });
                 }
             });
-            keyboard.on('keydown-ESC', () =>
-            {
-                if (!this.levelComplete)
-                {
-                    this.scene.start('GameOver');
-                }
-            });
+            keyboard.on('keydown-ESC', () => this.pauseGame());
+            keyboard.on('keydown-P', () => this.pauseGame());
+
+            //  Keys released while paused can still read as held; clear them so the player
+            //  doesn't walk on their own after resuming.
+            //  Scene events outlive restarts, so remove the listener on shutdown.
+            const onResume = () => keyboard.resetKeys();
+            this.events.on(Scenes.Events.RESUME, onResume);
+            this.events.once(Scenes.Events.SHUTDOWN, () => this.events.off(Scenes.Events.RESUME, onResume));
         }
     }
 
@@ -168,6 +171,19 @@ export class Game extends Scene
                 this.isMoving = false;
             }
         });
+    }
+
+    //  Freezes the level (including any tween in progress) and opens the pause menu.
+    //  A paused scene receives no input, so this only runs while playing.
+    private pauseGame ()
+    {
+        if (this.levelComplete)
+        {
+            return;
+        }
+        const data: PauseMenuData = { levelIndex: this.levelIndex };
+        this.scene.pause();
+        this.scene.launch('PauseMenu', data);
     }
 
     private completeLevel ()
