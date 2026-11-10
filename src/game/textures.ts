@@ -1,8 +1,9 @@
 import { Scene } from 'phaser';
 import { TILE_SIZE, TileIndex } from './levels/Tiles';
 
-//  Draws placeholder art into textures so the game needs no image files.
-//  Creates 'tiles' (a horizontal strip in TileIndex order), 'player' and 'boulder'.
+//  Draws placeholders into textures until the game has image files.
+//  Creates 'tiles' (a horizontal strip in TileIndex order) and 'boulder'.
+//  The player comes from firefox.png (see playerAnimations.ts).
 export function generateTextures (scene: Scene): void
 {
     const S = TILE_SIZE;
@@ -56,17 +57,6 @@ export function generateTextures (scene: Scene): void
     }
 
     g.generateTexture('tiles', S * 4, S);
-    g.clear();
-
-    //  Player: a colored circle with an outline
-    g.fillStyle(0xe8553e);
-    g.fillCircle(S / 2, S / 2, S * 0.32);
-    g.lineStyle(4, 0x7a2416);
-    g.strokeCircle(S / 2, S / 2, S * 0.32);
-    g.fillStyle(0xffffff);
-    g.fillCircle(S / 2 - 8, S / 2 - 6, 5);
-    g.fillCircle(S / 2 + 8, S / 2 - 6, 5);
-    g.generateTexture('player', S, S);
     g.clear();
 
     //  Boulder: a brown rock, slightly smaller than a tile so the terrain shows at the edges

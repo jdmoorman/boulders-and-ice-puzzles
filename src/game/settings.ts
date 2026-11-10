@@ -5,3 +5,9 @@ export const MOVEMENT = {
     //  Time (ms) per tile while sliding on ice
     slideMsPerTile: 90
 };
+
+//  Player sprite animation speeds (frames per second)
+export const PLAYER_ANIMATION = {
+    walkFps: 10,
+    idleFps: 2
+};

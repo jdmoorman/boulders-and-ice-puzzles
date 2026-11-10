@@ -1,4 +1,5 @@
-import { Scene } from 'phaser';
+import { Scene, Textures } from 'phaser';
+import { createPlayerAnimations, PLAYER_FRAME_SIZE } from '../playerAnimations';
 import { generateTextures } from '../textures';
 import { LEVELS } from '../levels/levelList';
 
@@ -35,6 +36,10 @@ export class Preloader extends Scene
         this.load.setPath('assets');
 
         this.load.image('logo', 'logo.png');
+        this.load.spritesheet('player', 'firefox.png', {
+            frameWidth: PLAYER_FRAME_SIZE,
+            frameHeight: PLAYER_FRAME_SIZE
+        });
 
         for (const level of LEVELS)
         {
@@ -46,6 +51,10 @@ export class Preloader extends Scene
     {
         //  When all the assets have loaded, it's often worth creating global objects here that the rest of the game can use.
         //  For example, you can define global animations here, so we can use them in other scenes.
+        //  Keep the scaled-up pixel art sharp (only this texture; other textures still smooth)
+        this.textures.get('player').setFilter(Textures.FilterMode.NEAREST);
+        createPlayerAnimations(this);
+
         generateTextures(this);
 
         //  Move to the MainMenu. You could also swap this for a Scene Transition, such as a camera fade.

@@ -4,6 +4,7 @@ import { buildLevel, BuiltLevel, tileCenter } from '../levels/LevelLoader';
 import { LEVELS } from '../levels/levelList';
 import { resolveMove, Direction } from '../movement/Movement';
 import { MOVEMENT } from '../settings';
+import { playerAnimKey, PlayerAnimKind } from '../playerAnimations';
 import { LevelCompleteData } from './LevelComplete';
 import { PauseMenuData } from './PauseMenu';
 
@@ -23,6 +24,8 @@ export class Game extends Scene
     isMoving = false;
     //  True once the player has reached the exit; gameplay input stops
     levelComplete = false;
+    //  Direction the player sprite faces; levels start facing down
+    facing: Direction = 'up';
 
     private directionKeys: Record<Direction, Input.Keyboard.Key[]> | null = null;
     //  Direction whose blocked move was already reported, so a held key reports it once
@@ -49,6 +52,8 @@ export class Game extends Scene
         this.isMoving = false;
         this.levelComplete = false;
         this.reportedDir = null;
+        this.facing = 'up';
+        this.playPlayerAnim('idle');
 
         const keyboard = this.input.keyboard;
         if (keyboard)
@@ -95,10 +100,13 @@ export class Game extends Scene
         }
         if (!dir)
         {
+            //  Idle only once nothing is held, so held keys chain steps without flickering to idle
+            this.playPlayerAnim('idle');
             return;
         }
 
         const move = resolveMove(this.level.data, this.playerPos, dir);
+        this.facing = dir;
         switch (move.kind)
         {
             case 'walk':
@@ -107,6 +115,8 @@ export class Game extends Scene
 
             case 'push':
             {
+                //  The player stays put, facing the boulder
+                this.playPlayerAnim('idle');
                 const i = move.boulderIndex;
                 const end = move.path[move.path.length - 1];
                 this.tweenAlong(this.level.boulders[i], move.path, () =>
@@ -119,10 +129,16 @@ export class Game extends Scene
             case 'exit':
                 //  Finish the move by stepping onto the exit tile itself
                 this.levelComplete = true;
-                this.movePlayer([...move.path, this.level.data.goal], () => this.completeLevel());
+                this.movePlayer([...move.path, this.level.data.goal], () =>
+                {
+                    this.playPlayerAnim('idle');
+                    this.completeLevel();
+                });
                 break;
 
             case 'blocked':
+                //  Turn to face the wall or boulder, every time (not just once per press)
+                this.playPlayerAnim('idle');
                 if (this.reportedDir !== dir)
                 {
                     this.reportedDir = dir;
@@ -141,8 +157,24 @@ export class Game extends Scene
         return DIRECTIONS.find(dir => this.directionKeys![dir].some(key => key.isDown)) ?? null;
     }
 
+    //  Plays the player's walk or idle animation for the current facing direction.
+    //  Does nothing if that animation is already playing.
+    private playPlayerAnim (kind: PlayerAnimKind)
+    {
+        const { key, flipX } = playerAnimKey(kind, this.facing);
+        this.level.player.setFlipX(flipX).play(key, true);
+    }
+
+    //  Walks the player along a path: walk animation for the first step, then idle while
+    //  sliding on ice. The scene clock pauses with the scene, so this stays in sync with the tween.
     private movePlayer (path: GridPoint[], then?: () => void)
     {
+        this.playPlayerAnim('walk');
+        if (path.length > 1)
+        {
+            this.time.delayedCall(MOVEMENT.walkMsPerTile, () => this.playPlayerAnim('idle'));
+        }
+
         const end = path[path.length - 1];
         this.tweenAlong(this.level.player, path, () =>
         {
@@ -153,7 +185,7 @@ export class Game extends Scene
 
     //  Tweens a sprite along a straight path: the first tile is a step, the rest are a slide.
     //  Input is ignored until it finishes; `onDone` then updates the logical position.
-    private tweenAlong (sprite: GameObjects.Image, path: GridPoint[], onDone: () => void)
+    private tweenAlong (sprite: GameObjects.Image | GameObjects.Sprite, path: GridPoint[], onDone: () => void)
     {
         const target = tileCenter(path[path.length - 1]);
         const duration = MOVEMENT.walkMsPerTile + (path.length - 1) * MOVEMENT.slideMsPerTile;

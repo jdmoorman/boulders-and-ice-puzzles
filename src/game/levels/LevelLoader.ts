@@ -1,13 +1,14 @@
 import { Scene, GameObjects, Tilemaps } from 'phaser';
 import { LevelData, GridPoint } from './LevelParser';
 import { TILE_SIZE } from './Tiles';
+import { PLAYER_FRAME_SIZE } from '../playerAnimations';
 
 export interface BuiltLevel
 {
     data: LevelData;
     map: Tilemaps.Tilemap;
     layer: Tilemaps.TilemapLayer | Tilemaps.TilemapGPULayer;
-    player: GameObjects.Image;
+    player: GameObjects.Sprite;
     boulders: GameObjects.Image[];
 }
 
@@ -21,7 +22,8 @@ export function tileCenter (p: GridPoint): { x: number, y: number }
 }
 
 //  Builds a tilemap and entity sprites from parsed level data, and fits the camera to it.
-//  Requires the 'tiles', 'player' and 'boulder' textures from generateTextures().
+//  Requires the 'tiles' and 'boulder' textures from generateTextures(), and the 'player'
+//  spritesheet loaded in the Preloader.
 export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
 {
     const map = scene.make.tilemap({
@@ -49,7 +51,8 @@ export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
     });
 
     const start = tileCenter(data.player);
-    const player = scene.add.image(start.x, start.y, 'player');
+    const player = scene.add.sprite(start.x, start.y, 'player')
+        .setScale(TILE_SIZE / PLAYER_FRAME_SIZE);
 
     //  Center the level on screen, shrinking it if it doesn't fit
     const camera = scene.cameras.main;
