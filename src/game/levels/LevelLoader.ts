@@ -21,7 +21,7 @@ export function tileCenter (p: GridPoint): { x: number, y: number }
     };
 }
 
-//  Builds a tilemap and entity sprites from parsed level data, and fits the camera to it.
+//  Builds a tilemap and entity sprites from parsed level data, and makes the camera follow the player.
 //  Requires the 'tiles' and 'boulder' textures from generateTextures(), and the 'player'
 //  spritesheet loaded in the Preloader.
 export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
@@ -54,13 +54,11 @@ export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
     const player = scene.add.sprite(start.x, start.y, 'player')
         .setScale(TILE_SIZE / PLAYER_FRAME_SIZE);
 
-    //  Center the level on screen, shrinking it if it doesn't fit
+    //  Keep the player centred on screen at all times (no bounds, no smoothing), so the
+    //  level scrolls around them and space past the level's edges can show.
     const camera = scene.cameras.main;
-    const worldWidth = data.width * TILE_SIZE;
-    const worldHeight = data.height * TILE_SIZE;
-    const zoom = Math.min(1, camera.width / worldWidth, camera.height / worldHeight);
-    camera.setZoom(zoom);
-    camera.centerOn(worldWidth / 2, worldHeight / 2);
+    camera.setZoom(1);
+    camera.startFollow(player, true);
 
     return { data, map, layer, player, boulders };
 }
