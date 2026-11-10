@@ -1,0 +1,9 @@
+; Level 2
+; The boulder blocks the way down. Push it aside, then slide to the exit.
+##########
+#p..b.___#
+####_#####
+   #_#
+   #_#
+   #x#
+   ###

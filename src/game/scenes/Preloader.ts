@@ -1,5 +1,6 @@
 import { Scene } from 'phaser';
 import { generateTextures } from '../textures';
+import { LEVELS } from '../levels/levelList';
 
 export class Preloader extends Scene
 {
@@ -35,7 +36,10 @@ export class Preloader extends Scene
 
         this.load.image('logo', 'logo.png');
 
-        this.load.text('level-demo', 'levels/demo.txt');
+        for (const level of LEVELS)
+        {
+            this.load.text(level.key, level.file);
+        }
     }
 
     create ()

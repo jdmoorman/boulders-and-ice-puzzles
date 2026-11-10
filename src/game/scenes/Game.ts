@@ -1,20 +1,30 @@
 import { Scene, Input, GameObjects } from 'phaser';
 import { parseLevel, GridPoint } from '../levels/LevelParser';
 import { buildLevel, BuiltLevel, tileCenter } from '../levels/LevelLoader';
+import { LEVELS } from '../levels/levelList';
 import { resolveMove, Direction } from '../movement/Movement';
 import { MOVEMENT } from '../settings';
+import { LevelCompleteData } from './LevelComplete';
 
 const DIRECTIONS: readonly Direction[] = ['up', 'down', 'left', 'right'];
 
+export interface GameData
+{
+    levelIndex?: number;
+}
+
 export class Game extends Scene
 {
+    levelIndex = 0;
     level: BuiltLevel;
     playerPos: GridPoint;
     //  True while the player or a pushed boulder is moving; input is ignored until it settles
     isMoving = false;
+    //  True once the player has reached the exit; gameplay input stops
+    levelComplete = false;
 
     private directionKeys: Record<Direction, Input.Keyboard.Key[]> | null = null;
-    //  Direction whose blocked/exit attempt was already reported, so a held key reports it once
+    //  Direction whose blocked move was already reported, so a held key reports it once
     private reportedDir: Direction | null = null;
 
     constructor ()
@@ -22,15 +32,21 @@ export class Game extends Scene
         super('Game');
     }
 
+    init (data: GameData)
+    {
+        this.levelIndex = data.levelIndex ?? 0;
+    }
+
     create ()
     {
         this.cameras.main.setBackgroundColor(0x141a22);
 
         //  level.data.boulders holds live boulder positions, in the same order as level.boulders sprites
-        const data = parseLevel(this.cache.text.get('level-demo'));
+        const data = parseLevel(this.cache.text.get(LEVELS[this.levelIndex].key));
         this.level = buildLevel(this, data);
         this.playerPos = { ...data.player };
         this.isMoving = false;
+        this.levelComplete = false;
         this.reportedDir = null;
 
         const keyboard = this.input.keyboard;
@@ -44,14 +60,27 @@ export class Game extends Scene
                 right: [keyboard.addKey(K.RIGHT), keyboard.addKey(K.D)]
             };
 
-            keyboard.on('keydown-R', () => this.scene.restart());
-            keyboard.on('keydown-ESC', () => this.scene.start('GameOver'));
+            //  Disabled once the level is complete; the popup has its own R shortcut
+            keyboard.on('keydown-R', () =>
+            {
+                if (!this.levelComplete)
+                {
+                    this.scene.restart({ levelIndex: this.levelIndex });
+                }
+            });
+            keyboard.on('keydown-ESC', () =>
+            {
+                if (!this.levelComplete)
+                {
+                    this.scene.start('GameOver');
+                }
+            });
         }
     }
 
     update ()
     {
-        if (this.isMoving)
+        if (this.isMoving || this.levelComplete)
         {
             return;
         }
@@ -85,20 +114,9 @@ export class Game extends Scene
             }
 
             case 'exit':
-                if (move.path.length > 0)
-                {
-                    this.movePlayer(move.path, () =>
-                    {
-                        //  Count the slide as this key's report, so holding it doesn't fire again
-                        this.reportedDir = dir;
-                        this.onExitAttempt();
-                    });
-                }
-                else if (this.reportedDir !== dir)
-                {
-                    this.reportedDir = dir;
-                    this.onExitAttempt();
-                }
+                //  Finish the move by stepping onto the exit tile itself
+                this.levelComplete = true;
+                this.movePlayer([...move.path, this.level.data.goal], () => this.completeLevel());
                 break;
 
             case 'blocked':
@@ -152,15 +170,18 @@ export class Game extends Scene
         });
     }
 
+    private completeLevel ()
+    {
+        const data: LevelCompleteData = {
+            levelIndex: this.levelIndex,
+            isLast: this.levelIndex >= LEVELS.length - 1
+        };
+        this.scene.launch('LevelComplete', data);
+    }
+
     //  Called once when the player tries to move into a wall or an immovable boulder.
     //  Placeholder for a future bump sound and/or animation.
     private onBlockedMove (_dir: Direction)
-    {
-    }
-
-    //  Called when the player steps or slides into the exit.
-    //  Placeholder for exit handling (e.g. finishing the level).
-    private onExitAttempt ()
     {
     }
 }
