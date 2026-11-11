@@ -1,7 +1,8 @@
 import { Scene, GameObjects, Tilemaps } from 'phaser';
 import { LevelData, GridPoint } from './LevelParser';
 import { TILE_SIZE } from './Tiles';
-import { PLAYER_FRAME_SIZE } from '../playerAnimations';
+import { PLAYER_FRAME_HEIGHT } from '../playerAnimations';
+import { PLAYER_SPRITE } from '../settings';
 
 export interface BuiltLevel
 {
@@ -22,8 +23,8 @@ export function tileCenter (p: GridPoint): { x: number, y: number }
 }
 
 //  Builds a tilemap and entity sprites from parsed level data, and makes the camera follow the player.
-//  Requires the 'tiles' and 'boulder' textures from generateTextures(), and the 'player'
-//  spritesheet loaded in the Preloader.
+//  Requires the 'tiles' texture from generateTextures(), and the 'player' spritesheet and
+//  'boulder' image loaded in the Preloader.
 export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
 {
     const map = scene.make.tilemap({
@@ -47,12 +48,19 @@ export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
     const boulders = data.boulders.map(b =>
     {
         const { x, y } = tileCenter(b);
-        return scene.add.image(x, y, 'boulder');
+        //  rock.png is 32x32; draw it at one tile
+        return scene.add.image(x, y, 'boulder').setDisplaySize(TILE_SIZE, TILE_SIZE);
     });
 
     const start = tileCenter(data.player);
+    //  The player is drawn taller than a tile, standing on its tile and reaching into the one
+    //  above. Its position stays at the tile centre (so movement tweens are unchanged); the
+    //  origin shifts the frame up so its bottom edge (where the feet are) sits
+    //  feetAboveTileBottom pixels above the tile's bottom edge.
+    const frameHeight = PLAYER_FRAME_HEIGHT * PLAYER_SPRITE.pixelScale;
     const player = scene.add.sprite(start.x, start.y, 'player')
-        .setScale(TILE_SIZE / PLAYER_FRAME_SIZE);
+        .setScale(PLAYER_SPRITE.pixelScale)
+        .setOrigin(0.5, 1 - (TILE_SIZE / 2 - PLAYER_SPRITE.feetAboveTileBottom) / frameHeight);
 
     //  Keep the player centred on screen at all times (no bounds, no smoothing), so the
     //  level scrolls around them and space past the level's edges can show.

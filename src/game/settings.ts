@@ -1,13 +1,20 @@
 //  Gameplay tuning values. Tweak these to change how the game feels.
 export const MOVEMENT = {
     //  Time (ms) to step one tile on foot
-    walkMsPerTile: 150,
+    walkMsPerTile: 200,
     //  Time (ms) per tile while sliding on ice
-    slideMsPerTile: 90
+    slideMsPerTile: 150
 };
 
-//  Player sprite animation speeds (frames per second)
+//  Player sprite animation speed (frames per second). Standing is a single frame.
 export const PLAYER_ANIMATION = {
-    walkFps: 10,
-    idleFps: 2
+    walkFps: 6
+};
+
+//  How the player sprite is drawn
+export const PLAYER_SPRITE = {
+    //  Screen pixels per sprite sheet pixel (4 = an 18x26 frame is drawn 72x104)
+    pixelScale: 4,
+    //  How far above the bottom edge of its tile the player's feet are drawn, in screen pixels
+    feetAboveTileBottom: 4
 };

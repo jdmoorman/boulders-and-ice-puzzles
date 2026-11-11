@@ -2,8 +2,8 @@ import { Scene } from 'phaser';
 import { TILE_SIZE, TileIndex } from './levels/Tiles';
 
 //  Draws placeholders into textures until the game has image files.
-//  Creates 'tiles' (a horizontal strip in TileIndex order) and 'boulder'.
-//  The player comes from firefox.png (see playerAnimations.ts).
+//  Creates 'tiles' (a horizontal strip in TileIndex order).
+//  The player comes from player/openmon/set1-sheet3.png (see playerAnimations.ts) and boulders from rock.png.
 export function generateTextures (scene: Scene): void
 {
     const S = TILE_SIZE;
@@ -57,16 +57,6 @@ export function generateTextures (scene: Scene): void
     }
 
     g.generateTexture('tiles', S * 4, S);
-    g.clear();
-
-    //  Boulder: a brown rock, slightly smaller than a tile so the terrain shows at the edges
-    g.fillStyle(0x7a5a3a);
-    g.fillCircle(S / 2, S / 2, S * 0.4);
-    g.lineStyle(4, 0x4a3420);
-    g.strokeCircle(S / 2, S / 2, S * 0.4);
-    g.fillStyle(0x9a7652);
-    g.fillCircle(S / 2 - 8, S / 2 - 8, S * 0.12);
-    g.generateTexture('boulder', S, S);
 
     g.destroy();
 }

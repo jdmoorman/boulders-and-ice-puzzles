@@ -4,40 +4,42 @@ import { PLAYER_ANIMATION } from './settings';
 
 export type PlayerAnimKind = 'walk' | 'idle';
 
-//  Frames in firefox.png (32x32, 8 per row; frame = row * 8 + column, rows from 0).
-//  Rows 1, 4 and 7 of the sheet are unused. Left-facing reuses 'right', mirrored.
-const PLAYER_ANIMS: readonly { key: string, start: number, end: number, kind: PlayerAnimKind }[] = [
-    { key: 'player-walk-right', start: 8, end: 11, kind: 'walk' },   //  row 2
-    { key: 'player-idle-right', start: 16, end: 20, kind: 'idle' },  //  row 3
-    { key: 'player-walk-up', start: 32, end: 39, kind: 'walk' },     //  row 5
-    { key: 'player-idle-up', start: 40, end: 41, kind: 'idle' },     //  row 6
-    { key: 'player-walk-down', start: 56, end: 59, kind: 'walk' },   //  row 8
-    { key: 'player-idle-down', start: 64, end: 65, kind: 'idle' }    //  row 9
-];
+//  Frame size in player/openmon/set1-sheet3.png: 3 columns x 4 rows of 18x26 frames.
+export const PLAYER_FRAME_WIDTH = 18;
+export const PLAYER_FRAME_HEIGHT = 26;
+const FRAMES_PER_ROW = 3;
 
-//  Size of one frame in firefox.png
-export const PLAYER_FRAME_SIZE = 32;
+//  Sheet row for each facing direction. In each row the middle frame is the standing pose.
+const ROWS: Readonly<Record<Direction, number>> = {
+    down: 0,
+    left: 1,
+    right: 2,
+    up: 3
+};
 
 //  Registers the player animations. Animations are global, so call this once (in the Preloader).
+//  - player-walk-<dir>: left step, stand, right step, stand (frames 0, 1, 2, 1 of the row)
+//  - player-idle-<dir>: the standing frame (frame 1 of the row)
 export function createPlayerAnimations (scene: Scene): void
 {
-    for (const anim of PLAYER_ANIMS)
+    for (const [dir, row] of Object.entries(ROWS))
     {
+        const first = row * FRAMES_PER_ROW;
         scene.anims.create({
-            key: anim.key,
-            frames: scene.anims.generateFrameNumbers('player', { start: anim.start, end: anim.end }),
-            frameRate: anim.kind === 'walk' ? PLAYER_ANIMATION.walkFps : PLAYER_ANIMATION.idleFps,
+            key: `player-walk-${dir}`,
+            frames: scene.anims.generateFrameNumbers('player', { frames: [first, first + 1, first + 2, first + 1] }),
+            frameRate: PLAYER_ANIMATION.walkFps,
             repeat: -1
+        });
+        scene.anims.create({
+            key: `player-idle-${dir}`,
+            frames: scene.anims.generateFrameNumbers('player', { frames: [first + 1] })
         });
     }
 }
 
-//  Animation key for a kind and direction. Left uses the right-facing animation, flipped.
-export function playerAnimKey (kind: PlayerAnimKind, dir: Direction): { key: string, flipX: boolean }
+//  Animation key for a kind and direction.
+export function playerAnimKey (kind: PlayerAnimKind, dir: Direction): string
 {
-    if (dir === 'left')
-    {
-        return { key: `player-${kind}-right`, flipX: true };
-    }
-    return { key: `player-${kind}-${dir}`, flipX: false };
+    return `player-${kind}-${dir}`;
 }

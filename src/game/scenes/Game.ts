@@ -161,8 +161,7 @@ export class Game extends Scene
     //  Does nothing if that animation is already playing.
     private playPlayerAnim (kind: PlayerAnimKind)
     {
-        const { key, flipX } = playerAnimKey(kind, this.facing);
-        this.level.player.setFlipX(flipX).play(key, true);
+        this.level.player.play(playerAnimKey(kind, this.facing), true);
     }
 
     //  Walks the player along a path: walk animation for the first step, then idle while
