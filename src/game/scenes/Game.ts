@@ -1,6 +1,6 @@
 import { Scene, Scenes, Input, GameObjects } from 'phaser';
 import { parseLevel, GridPoint } from '../levels/LevelParser';
-import { buildLevel, BuiltLevel, tileCenter } from '../levels/LevelLoader';
+import { buildLevel, BuiltLevel, tileCenter, ySortDepth } from '../levels/LevelLoader';
 import { LEVELS } from '../levels/levelList';
 import { resolveMove, Direction } from '../movement/Movement';
 import { MOVEMENT } from '../settings';
@@ -196,6 +196,8 @@ export class Game extends Scene
             y: target.y,
             duration,
             ease: 'Linear',
+            //  Keep the draw order right relative to tall walls as it moves
+            onUpdate: () => ySortDepth(sprite),
             onComplete: () =>
             {
                 onDone();

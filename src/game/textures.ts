@@ -1,7 +1,8 @@
 import { Scene, Textures } from 'phaser';
 import { TILE_SIZE } from './levels/Tiles';
 import {
-    AUTOTILE_COLUMNS, AUTOTILE_FRAMES, AUTOTILE_SETS, ISOLATED_FRAME, autotileBase
+    AUTOTILE_COLUMNS, AUTOTILE_FRAMES, AUTOTILE_SETS, ISOLATED_FRAME, autotileBase,
+    autotileFrameSize, isTallSet
 } from './levels/autotile';
 
 //  Builds the level textures from the images loaded in the Preloader:
@@ -26,16 +27,19 @@ export function generateTextures (scene: Scene): void
     const source = (key: string) => scene.textures.get(key).getSourceImage() as HTMLImageElement;
 
     //  Autotile frames. The plain TileIndex slots get each set's isolated frame; levels are
-    //  always drawn with the autotiled frames, so these are only a fallback.
+    //  always drawn with the autotiled frames, so these are only a fallback. For a tall set
+    //  this strip holds just the bottom square of each frame (also unused), and the full
+    //  frames are added to the set's own texture as frames 0..AUTOTILE_FRAMES-1.
     AUTOTILE_SETS.forEach((set, setIndex) =>
     {
         const sheet = source(set.texture);
-        const frameSize = sheet.width / AUTOTILE_COLUMNS;
+        const { width: fw, height: fh } = autotileFrameSize(scene, set);
+        const frameX = (frame: number) => (frame % AUTOTILE_COLUMNS) * fw;
+        const frameY = (frame: number) => Math.floor(frame / AUTOTILE_COLUMNS) * fh;
         const drawFrame = (frame: number, index: number) =>
         {
-            const sx = (frame % AUTOTILE_COLUMNS) * frameSize;
-            const sy = Math.floor(frame / AUTOTILE_COLUMNS) * frameSize;
-            ctx.drawImage(sheet, sx, sy, frameSize, frameSize, index * S, 0, S, S);
+            //  Bottom square of the frame
+            ctx.drawImage(sheet, frameX(frame), frameY(frame) + fh - fw, fw, fw, index * S, 0, S, S);
         };
 
         for (const tile of set.tiles)
@@ -45,6 +49,16 @@ export function generateTextures (scene: Scene): void
         for (let frame = 0; frame < AUTOTILE_FRAMES; frame++)
         {
             drawFrame(frame, autotileBase(setIndex) + frame);
+        }
+
+        if (isTallSet(scene, set))
+        {
+            const texture = scene.textures.get(set.texture);
+            for (let frame = 0; frame < AUTOTILE_FRAMES; frame++)
+            {
+                texture.add(frame, 0, frameX(frame), frameY(frame), fw, fh);
+            }
+            texture.setFilter(Textures.FilterMode.NEAREST);
         }
     });
 

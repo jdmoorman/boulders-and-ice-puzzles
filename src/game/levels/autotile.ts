@@ -1,3 +1,4 @@
+import { Scene } from 'phaser';
 import { TileIndex } from './Tiles';
 
 //  Autotiling with tilesets in Godot's 3x3 minimal (47 tile) layout: 12 columns x 4 rows of
@@ -5,6 +6,10 @@ import { TileIndex } from './Tiles';
 //
 //  Each autotiled tile picks a frame from which of its 8 neighbours it joins with. The frame
 //  for a neighbour mask is the same in every sheet that uses this layout.
+//
+//  Frames may be taller than they are wide (e.g. walls drawn in 3/4 view). Only the bottom
+//  square of a tall frame sits on the tile; the rest rises over the tiles above it. The frame
+//  size is read from the sheet: width / AUTOTILE_COLUMNS by height / AUTOTILE_ROWS.
 
 export const AUTOTILE_COLUMNS = 12;
 export const AUTOTILE_ROWS = 4;
@@ -93,10 +98,32 @@ export function autotileMask (tiles: number[][], x: number, y: number, set: Auto
     return mask;
 }
 
-//  Returns a copy of a level's tiles for display, with each autotiled tile replaced by the
-//  'tiles' strip index of the frame that fits its neighbours. The level data itself keeps
+//  The sheet frame for the tile at (x, y) in a set.
+export function autotileFrame (tiles: number[][], x: number, y: number, set: AutotileSet): number
+{
+    return FRAME_BY_MASK.get(autotileMask(tiles, x, y, set))!;
+}
+
+//  Size in pixels of one frame of a set's sheet (the sheet must already be loaded).
+export function autotileFrameSize (scene: Scene, set: AutotileSet): { width: number, height: number }
+{
+    const sheet = scene.textures.get(set.texture).getSourceImage() as HTMLImageElement;
+    return { width: sheet.width / AUTOTILE_COLUMNS, height: sheet.height / AUTOTILE_ROWS };
+}
+
+//  Whether a set's frames are taller than a tile. Tall sets are drawn as depth-sorted images
+//  (see LevelLoader.ts) instead of in the tilemap.
+export function isTallSet (scene: Scene, set: AutotileSet): boolean
+{
+    const { width, height } = autotileFrameSize(scene, set);
+    return height > width;
+}
+
+//  Returns a copy of a level's tiles for the tilemap, with each autotiled tile replaced by the
+//  'tiles' strip index of the frame that fits its neighbours. Tiles of a tall set become
+//  TileIndex.Void, since those are drawn as images instead. The level data itself keeps
 //  plain TileIndex values, which movement relies on.
-export function autotileLevel (tiles: number[][]): number[][]
+export function autotileLevel (tiles: number[][], isTall: (set: AutotileSet) => boolean): number[][]
 {
     return tiles.map((row, y) => row.map((tile, x) =>
     {
@@ -105,7 +132,11 @@ export function autotileLevel (tiles: number[][]): number[][]
         {
             return tile;
         }
-        const mask = autotileMask(tiles, x, y, AUTOTILE_SETS[setIndex]);
-        return autotileBase(setIndex) + FRAME_BY_MASK.get(mask)!;
+        const set = AUTOTILE_SETS[setIndex];
+        if (isTall(set))
+        {
+            return TileIndex.Void;
+        }
+        return autotileBase(setIndex) + autotileFrame(tiles, x, y, set);
     }));
 }
