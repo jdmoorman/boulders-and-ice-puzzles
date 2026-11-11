@@ -1,58 +1,69 @@
 import { Scene, Textures } from 'phaser';
-import { TILE_SIZE, TileIndex } from './levels/Tiles';
+import { TILE_SIZE } from './levels/Tiles';
+import {
+    AUTOTILE_COLUMNS, AUTOTILE_FRAMES, AUTOTILE_SETS, ISOLATED_FRAME, autotileBase
+} from './levels/autotile';
 
-//  Builds the 'tiles' texture: a horizontal strip of TILE_SIZE tiles in TileIndex order.
-//  Floor and ice are the 'snow' and 'ice' images loaded in the Preloader, scaled up to a tile;
-//  the wall and goal ring are still drawn placeholders.
+//  Builds the level textures from the images loaded in the Preloader:
+//  - 'tiles': a horizontal strip of TILE_SIZE tiles in TileIndex order, followed by every frame
+//    of each autotile set (see autotile.ts). Every tile comes from an autotile sheet,
+//    scaled up to a tile.
+//  - 'goal': the exit's gold ring, drawn over the snow under it.
 //  The player comes from player/openmon/set1-sheet3.png (see playerAnimations.ts) and boulders from rock.png.
 export function generateTextures (scene: Scene): void
 {
     const S = TILE_SIZE;
-    const texture = scene.textures.createCanvas('tiles', S * 4, S);
-    if (!texture)
+    const tileCount = autotileBase(AUTOTILE_SETS.length);
+    const tiles = scene.textures.createCanvas('tiles', S * tileCount, S);
+    if (!tiles)
     {
         throw new Error("Could not create canvas texture 'tiles'");
     }
-    const ctx = texture.context;
+    const ctx = tiles.context;
     //  Keep the scaled-up pixel art sharp
     ctx.imageSmoothingEnabled = false;
 
-    const drawImageTile = (key: string, index: TileIndex) =>
-    {
-        const image = scene.textures.get(key).getSourceImage() as CanvasImageSource;
-        ctx.drawImage(image, index * S, 0, S, S);
-    };
+    const source = (key: string) => scene.textures.get(key).getSourceImage() as HTMLImageElement;
 
-    //  Floor and ice
-    drawImageTile('snow', TileIndex.Floor);
-    drawImageTile('ice', TileIndex.Ice);
-
-    //  Wall: dark slate with a bevel
+    //  Autotile frames. The plain TileIndex slots get each set's isolated frame; levels are
+    //  always drawn with the autotiled frames, so these are only a fallback.
+    AUTOTILE_SETS.forEach((set, setIndex) =>
     {
-        const ox = TileIndex.Wall * S;
-        ctx.fillStyle = '#2f3a4a';
-        ctx.fillRect(ox, 0, S, S);
-        ctx.fillStyle = '#46546a';
-        ctx.fillRect(ox, 0, S, 6);
-        ctx.fillRect(ox, 0, 6, S);
-        ctx.fillStyle = '#1e2530';
-        ctx.fillRect(ox, S - 6, S, 6);
-        ctx.fillRect(ox + S - 6, 0, 6, S);
+        const sheet = source(set.texture);
+        const frameSize = sheet.width / AUTOTILE_COLUMNS;
+        const drawFrame = (frame: number, index: number) =>
+        {
+            const sx = (frame % AUTOTILE_COLUMNS) * frameSize;
+            const sy = Math.floor(frame / AUTOTILE_COLUMNS) * frameSize;
+            ctx.drawImage(sheet, sx, sy, frameSize, frameSize, index * S, 0, S, S);
+        };
+
+        for (const tile of set.tiles)
+        {
+            drawFrame(ISOLATED_FRAME, tile);
+        }
+        for (let frame = 0; frame < AUTOTILE_FRAMES; frame++)
+        {
+            drawFrame(frame, autotileBase(setIndex) + frame);
+        }
+    });
+
+    tiles.refresh();
+    tiles.setFilter(Textures.FilterMode.NEAREST);
+
+    //  Goal ring
+    const goal = scene.textures.createCanvas('goal', S, S);
+    if (!goal)
+    {
+        throw new Error("Could not create canvas texture 'goal'");
     }
-
-    //  Goal: snow with a gold ring
-    {
-        const ox = TileIndex.Goal * S;
-        drawImageTile('snow', TileIndex.Goal);
-        ctx.beginPath();
-        ctx.arc(ox + S / 2, S / 2, S * 0.3, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(242, 194, 48, 0.35)';
-        ctx.fill();
-        ctx.lineWidth = 6;
-        ctx.strokeStyle = '#f2c230';
-        ctx.stroke();
-    }
-
-    texture.refresh();
-    texture.setFilter(Textures.FilterMode.NEAREST);
+    const g = goal.context;
+    g.beginPath();
+    g.arc(S / 2, S / 2, S * 0.3, 0, Math.PI * 2);
+    g.fillStyle = 'rgba(242, 194, 48, 0.35)';
+    g.fill();
+    g.lineWidth = 6;
+    g.strokeStyle = '#f2c230';
+    g.stroke();
+    goal.refresh();
 }

@@ -3,6 +3,7 @@ import { LevelData, GridPoint } from './LevelParser';
 import { TILE_SIZE } from './Tiles';
 import { PLAYER_FRAME_HEIGHT } from '../playerAnimations';
 import { PLAYER_SPRITE } from '../settings';
+import { autotileLevel } from './autotile';
 
 export interface BuiltLevel
 {
@@ -23,12 +24,13 @@ export function tileCenter (p: GridPoint): { x: number, y: number }
 }
 
 //  Builds a tilemap and entity sprites from parsed level data, and makes the camera follow the player.
-//  Requires the 'tiles' texture from generateTextures(), and the 'player' spritesheet and
+//  Requires the 'tiles' and 'goal' textures from generateTextures(), and the 'player' spritesheet and
 //  'boulder' image loaded in the Preloader.
 export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
 {
     const map = scene.make.tilemap({
-        data: data.tiles,
+        //  Walls and snow are drawn with the autotile frame that fits their neighbours
+        data: autotileLevel(data.tiles),
         tileWidth: TILE_SIZE,
         tileHeight: TILE_SIZE
     });
@@ -44,6 +46,10 @@ export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
     {
         throw new Error('Could not create tilemap layer');
     }
+
+    //  The exit's ring, over the snow tile under it
+    const goal = tileCenter(data.goal);
+    scene.add.image(goal.x, goal.y, 'goal');
 
     const boulders = data.boulders.map(b =>
     {

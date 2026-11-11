@@ -1,5 +1,6 @@
 //  Tile indices into the generated 'tiles' texture strip (see textures.ts).
-//  The order here must match the order the tiles are drawn in.
+//  The order here must match the order the tiles are drawn in. Autotile frames follow
+//  these in the strip (see autotile.ts); level data only ever holds these values.
 export enum TileIndex
 {
     Void = -1,  //  Phaser treats -1 as "no tile"
