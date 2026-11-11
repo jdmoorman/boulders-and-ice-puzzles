@@ -41,6 +41,8 @@ export class Preloader extends Scene
             frameHeight: PLAYER_FRAME_HEIGHT
         });
         this.load.image('boulder', 'rock.png');
+        this.load.image('snow', 'exclude/snow_tile.png');
+        this.load.image('ice', 'exclude/ice_tile.png');
 
         for (const level of LEVELS)
         {
