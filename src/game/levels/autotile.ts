@@ -35,18 +35,12 @@ export const AUTOTILE_SETS: readonly AutotileSet[] = [
         tiles: [TileIndex.Wall],
         joins: n => n === undefined || n === TileIndex.Wall || n === TileIndex.Void
     },
-    //  Snow covers floor and the exit (its ring is drawn on top), and gets a shaded edge
-    //  wherever it meets anything else.
+    //  Snow covers floor and the exit (its ring is drawn on top). Walls count as snow, so the
+    //  snow runs up to them without an edge; it gets a shaded edge against ice and void.
     {
         texture: 'snowAutotile',
         tiles: [TileIndex.Floor, TileIndex.Goal],
-        joins: n => n === TileIndex.Floor || n === TileIndex.Goal
-    },
-    //  Ice gets a rim wherever it meets anything that isn't ice.
-    {
-        texture: 'iceAutotile',
-        tiles: [TileIndex.Ice],
-        joins: n => n === TileIndex.Ice
+        joins: n => n === TileIndex.Floor || n === TileIndex.Goal || n === TileIndex.Wall
     }
 ];
 
@@ -61,7 +55,7 @@ const N = 1, NE = 2, E = 4, SE = 8, S = 16, SW = 32, W = 64, NW = 128;
 
 //  Sheet frame for each neighbour mask, one row of the sheet per line.
 //  A corner bit is only set when both edges next to it are set, which leaves 47 masks.
-//  (Read from wall_autotile.png and checked against snow_autotile.png and ice_autotile.png: an edge or corner counts
+//  (Read from wall_autotile.png and checked against snow_autotile.png: an edge or corner counts
 //  as joined where the tile's interior reaches it.)
 const MASKS_BY_FRAME: readonly (number | null)[] = [
     16, 20, 84, 80, 213, 92, 116, 87, 28, 125, 124, 112,

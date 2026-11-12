@@ -1,5 +1,5 @@
 import { Scene, Textures } from 'phaser';
-import { TILE_SIZE } from './levels/Tiles';
+import { TILE_SIZE, TileIndex } from './levels/Tiles';
 import {
     AUTOTILE_COLUMNS, AUTOTILE_FRAMES, AUTOTILE_SETS, ISOLATED_FRAME, autotileBase,
     autotileFrameSize, isTallSet
@@ -7,8 +7,8 @@ import {
 
 //  Builds the level textures from the images loaded in the Preloader:
 //  - 'tiles': a horizontal strip of TILE_SIZE tiles in TileIndex order, followed by every frame
-//    of each autotile set (see autotile.ts). Every tile comes from an autotile sheet,
-//    scaled up to a tile.
+//    of each autotile set (see autotile.ts). Ice is the plain 'ice' image; floor, exit and
+//    walls come from autotile sheets. All are scaled up to a tile.
 //  - 'goal': the exit's gold ring, drawn over the snow under it.
 //  The player comes from player/openmon/set1-sheet3.png (see playerAnimations.ts) and boulders from rock.png.
 export function generateTextures (scene: Scene): void
@@ -25,6 +25,9 @@ export function generateTextures (scene: Scene): void
     ctx.imageSmoothingEnabled = false;
 
     const source = (key: string) => scene.textures.get(key).getSourceImage() as HTMLImageElement;
+
+    //  Ice: one plain tile, not autotiled
+    ctx.drawImage(source('ice'), TileIndex.Ice * S, 0, S, S);
 
     //  Autotile frames. The plain TileIndex slots get each set's isolated frame; levels are
     //  always drawn with the autotiled frames, so these are only a fallback. For a tall set
