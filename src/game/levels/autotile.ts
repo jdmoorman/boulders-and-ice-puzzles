@@ -28,12 +28,12 @@ export interface AutotileSet
 //  The autotiled sets. Their frames follow the TileIndex tiles in the 'tiles' strip, one block
 //  of AUTOTILE_FRAMES per set in this order (see textures.ts).
 export const AUTOTILE_SETS: readonly AutotileSet[] = [
-    //  Walls join with walls, void and the outside of the level, so their rock edge is only
-    //  drawn where a wall meets the playable area.
+    //  Walls join only with walls, so their rock edge is drawn wherever a wall meets anything
+    //  else, including void and the outside of the level (a lone wall looks like a lone wall).
     {
         texture: 'wallAutotile',
         tiles: [TileIndex.Wall],
-        joins: n => n === undefined || n === TileIndex.Wall || n === TileIndex.Void
+        joins: n => n === TileIndex.Wall
     },
     //  Snow covers floor and the exit (its ring is drawn on top). Walls count as snow, so the
     //  snow runs up to them without an edge; it gets a shaded edge against ice and void.
