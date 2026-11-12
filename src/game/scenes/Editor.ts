@@ -84,22 +84,7 @@ export class Editor extends Scene
         camera.setBackgroundColor(0x141a22);
 
         const saved = this.registry.get(STATE_KEY) as EditorState | undefined;
-        if (saved)
-        {
-            this.state = saved;
-        }
-        else
-        {
-            const level = new EditorLevel();
-            const centre = level.size * TILE_SIZE / 2;
-            this.state = {
-                level,
-                tool: 'wall',
-                scrollX: centre - camera.width / 2,
-                scrollY: centre - camera.height / 2,
-                zoom: 1
-            };
-        }
+        this.state = saved ?? this.initialState(new EditorLevel(), 'wall');
         camera.setScroll(this.state.scrollX, this.state.scrollY).setZoom(this.state.zoom);
 
         this.isTall = set => isTallSet(this, set);
@@ -147,15 +132,7 @@ export class Editor extends Scene
     openLevel (index: number)
     {
         const level = EditorLevel.fromLevelData(parseLevel(this.cache.text.get(LEVELS[index].key)));
-        const camera = this.cameras.main;
-        const centre = level.size * TILE_SIZE / 2;
-        this.registry.set(STATE_KEY, {
-            level,
-            tool: this.state.tool,
-            scrollX: centre - camera.width / 2,
-            scrollY: centre - camera.height / 2,
-            zoom: 1
-        } satisfies EditorState);
+        this.registry.set(STATE_KEY, this.initialState(level, this.state.tool));
         //  Skip the shutdown save, which would overwrite the new state
         this.skipSave = true;
         this.scene.restart();
@@ -187,6 +164,20 @@ export class Editor extends Scene
     toMainMenu ()
     {
         this.scene.start('MainMenu');
+    }
+
+    //  A fresh state for a level: zoom 1, with the view centred on the canvas
+    private initialState (level: EditorLevel, tool: EditorTool): EditorState
+    {
+        const camera = this.cameras.main;
+        const centre = level.size * TILE_SIZE / 2;
+        return {
+            level,
+            tool,
+            scrollX: centre - camera.width / 2,
+            scrollY: centre - camera.height / 2,
+            zoom: 1
+        };
     }
 
     private message (text: string)
