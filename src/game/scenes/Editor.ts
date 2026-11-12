@@ -38,9 +38,9 @@ export const PALETTE: readonly { tool: EditorTool, label: string }[] = [
     { tool: 'boulder', label: 'Boulder' }
 ];
 
-//  Tools that paint every cell along a drag. The others (exit, player, boulder) are placed
+//  Tools that paint every cell along a drag. The others (exit, player) are placed
 //  once, on the cell where the mouse was pressed.
-const DRAG_TOOLS: ReadonlySet<EditorTool> = new Set<EditorTool>(['wall', 'snow', 'ice', 'erase']);
+const DRAG_TOOLS: ReadonlySet<EditorTool> = new Set<EditorTool>(['wall', 'snow', 'ice', 'boulder', 'erase']);
 
 //  Events emitted on this scene's event emitter for the HUD
 export const EDITOR_EVENTS = {
