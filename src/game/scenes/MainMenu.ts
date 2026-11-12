@@ -20,5 +20,6 @@ export class MainMenu extends Scene
         //  Pass levelIndex explicitly: Phaser reuses a scene's previous start data otherwise
         addButton(this, 512, 470, 'Play', () => this.scene.start('Game', { levelIndex: 0 }));
         addButton(this, 512, 554, 'Levels', () => this.scene.start('LevelSelect'));
+        addButton(this, 512, 638, 'Editor', () => this.scene.start('Editor'));
     }
 }

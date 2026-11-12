@@ -29,7 +29,9 @@ export function addButton (
         .setStrokeStyle(3, 0x000000)
         .setInteractive({ useHandCursor: true });
 
-    scene.add.text(x, y, label, { ...TEXT_STYLE, fontSize: 28 }).setOrigin(0.5);
+    const text = scene.add.text(x, y, label, { ...TEXT_STYLE, fontSize: 28 }).setOrigin(0.5);
+    //  Destroying the button takes its label with it
+    button.once(GameObjects.Events.DESTROY, () => text.destroy());
 
     button.on('pointerover', () => button.setFillStyle(FILL_HOVER));
     button.on('pointerout', () => button.setFillStyle(FILL));

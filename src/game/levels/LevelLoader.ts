@@ -3,7 +3,7 @@ import { LevelData, GridPoint } from './LevelParser';
 import { TILE_SIZE } from './Tiles';
 import { PLAYER_FRAME_HEIGHT } from '../playerAnimations';
 import { PLAYER_SPRITE } from '../settings';
-import { AUTOTILE_SETS, autotileFrame, autotileFrameSize, autotileLevel, isTallSet } from './autotile';
+import { AUTOTILE_SETS, AutotileSet, autotileFrame, autotileFrameSize, autotileLevel, isTallSet } from './autotile';
 
 export interface BuiltLevel
 {
@@ -30,6 +30,51 @@ export function tileCenter (p: GridPoint): { x: number, y: number }
 export function ySortDepth (obj: GameObjects.Image | GameObjects.Sprite): void
 {
     obj.setDepth(obj.y + TILE_SIZE / 2);
+}
+
+//  Adds the image for a tall autotile tile at (x, y): standing on the bottom edge of its tile,
+//  rising over the tiles above it, and depth-sorted by that bottom edge.
+export function addTallTile (
+    scene: Scene, set: AutotileSet, tiles: number[][], x: number, y: number
+): GameObjects.Image
+{
+    const scale = TILE_SIZE / autotileFrameSize(scene, set).width;
+    const bottom = (y + 1) * TILE_SIZE;
+    const image = scene.add.image(x * TILE_SIZE, bottom, set.texture, autotileFrame(tiles, x, y, set))
+        .setOrigin(0, 1)
+        .setScale(scale)
+        .setDepth(bottom);
+    //  Scaled objects aren't pixel-snapped by default ('safeAuto'), which lets neighbouring
+    //  tiles drift apart by a pixel while the camera scrolls. These are axis-aligned at a whole
+    //  scale on a tile grid, so snapping every corner is safe and keeps their shared edges together.
+    image.vertexRoundMode = 'fullAuto';
+    return image;
+}
+
+//  Adds a boulder image on tile p.
+export function addBoulder (scene: Scene, p: GridPoint): GameObjects.Image
+{
+    const { x, y } = tileCenter(p);
+    //  rock.png is 32x32; draw it at one tile
+    const boulder = scene.add.image(x, y, 'boulder').setDisplaySize(TILE_SIZE, TILE_SIZE);
+    ySortDepth(boulder);
+    return boulder;
+}
+
+//  Adds the player sprite on tile p.
+//  The player is drawn taller than a tile, standing on its tile and reaching into the one
+//  above. Its position stays at the tile centre (so movement tweens are unchanged); the
+//  origin shifts the frame up so its bottom edge (where the feet are) sits
+//  feetAboveTileBottom pixels above the tile's bottom edge.
+export function addPlayer (scene: Scene, p: GridPoint): GameObjects.Sprite
+{
+    const start = tileCenter(p);
+    const frameHeight = PLAYER_FRAME_HEIGHT * PLAYER_SPRITE.pixelScale;
+    const player = scene.add.sprite(start.x, start.y, 'player')
+        .setScale(PLAYER_SPRITE.pixelScale)
+        .setOrigin(0.5, 1 - (TILE_SIZE / 2 - PLAYER_SPRITE.feetAboveTileBottom) / frameHeight);
+    ySortDepth(player);
+    return player;
 }
 
 //  Builds a tilemap and entity sprites from parsed level data, and makes the camera follow the player.
@@ -61,21 +106,11 @@ export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
     //  rising over the tiles above it
     for (const set of AUTOTILE_SETS.filter(s => isTallSet(scene, s)))
     {
-        const scale = TILE_SIZE / autotileFrameSize(scene, set).width;
         data.tiles.forEach((row, y) => row.forEach((tile, x) =>
         {
             if (set.tiles.includes(tile))
             {
-                const bottom = (y + 1) * TILE_SIZE;
-                const wall = scene.add.image(x * TILE_SIZE, bottom, set.texture, autotileFrame(data.tiles, x, y, set))
-                    .setOrigin(0, 1)
-                    .setScale(scale)
-                    .setDepth(bottom);
-                //  Scaled objects aren't pixel-snapped by default ('safeAuto'), which lets
-                //  neighbouring walls drift apart by a pixel while the camera scrolls. These are
-                //  axis-aligned at a whole scale on a tile grid, so snapping every corner is safe
-                //  and keeps their shared edges together.
-                wall.vertexRoundMode = 'fullAuto';
+                addTallTile(scene, set, data.tiles, x, y);
             }
         }));
     }
@@ -84,25 +119,8 @@ export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
     const goal = tileCenter(data.goal);
     scene.add.image(goal.x, goal.y, 'goal');
 
-    const boulders = data.boulders.map(b =>
-    {
-        const { x, y } = tileCenter(b);
-        //  rock.png is 32x32; draw it at one tile
-        const boulder = scene.add.image(x, y, 'boulder').setDisplaySize(TILE_SIZE, TILE_SIZE);
-        ySortDepth(boulder);
-        return boulder;
-    });
-
-    const start = tileCenter(data.player);
-    //  The player is drawn taller than a tile, standing on its tile and reaching into the one
-    //  above. Its position stays at the tile centre (so movement tweens are unchanged); the
-    //  origin shifts the frame up so its bottom edge (where the feet are) sits
-    //  feetAboveTileBottom pixels above the tile's bottom edge.
-    const frameHeight = PLAYER_FRAME_HEIGHT * PLAYER_SPRITE.pixelScale;
-    const player = scene.add.sprite(start.x, start.y, 'player')
-        .setScale(PLAYER_SPRITE.pixelScale)
-        .setOrigin(0.5, 1 - (TILE_SIZE / 2 - PLAYER_SPRITE.feetAboveTileBottom) / frameHeight);
-    ySortDepth(player);
+    const boulders = data.boulders.map(b => addBoulder(scene, b));
+    const player = addPlayer(scene, data.player);
 
     //  Keep the player centred on screen at all times (no bounds, no smoothing), so the
     //  level scrolls around them and space past the level's edges can show.

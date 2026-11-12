@@ -1,4 +1,6 @@
 import { Boot } from './scenes/Boot';
+import { Editor } from './scenes/Editor';
+import { EditorHud } from './scenes/EditorHud';
 import { Game as MainGame } from './scenes/Game';
 import { LevelComplete } from './scenes/LevelComplete';
 import { LevelSelect } from './scenes/LevelSelect';
@@ -22,7 +24,9 @@ const config: Phaser.Types.Core.GameConfig = {
         LevelSelect,
         MainGame,
         LevelComplete,
-        PauseMenu
+        PauseMenu,
+        Editor,
+        EditorHud
     ]
 };
 

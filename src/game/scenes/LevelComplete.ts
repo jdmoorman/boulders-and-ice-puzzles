@@ -1,10 +1,13 @@
 import { Scene } from 'phaser';
 import { addButton, TEXT_STYLE } from '../ui/Button';
+import type { GameData } from './Game';
 
 export interface LevelCompleteData
 {
     levelIndex: number;
     isLast: boolean;
+    //  Set when playtesting from the editor (see GameData)
+    levelText?: string;
 }
 
 //  Overlay shown on top of the Game scene when a level is finished.
@@ -13,6 +16,7 @@ export class LevelComplete extends Scene
 {
     private levelIndex = 0;
     private isLast = false;
+    private levelText: string | undefined;
 
     constructor ()
     {
@@ -23,6 +27,7 @@ export class LevelComplete extends Scene
     {
         this.levelIndex = data.levelIndex;
         this.isLast = data.isLast;
+        this.levelText = data.levelText;
     }
 
     create ()
@@ -42,7 +47,11 @@ export class LevelComplete extends Scene
 
         addButton(this, cx - 120, cy + 60, 'Replay', () => this.replay());
 
-        if (this.isLast)
+        if (this.levelText)
+        {
+            addButton(this, cx + 120, cy + 60, 'Editor', () => this.toEditor());
+        }
+        else if (this.isLast)
         {
             addButton(this, cx + 120, cy + 60, 'Menu', () => this.toMenu());
         }
@@ -55,19 +64,27 @@ export class LevelComplete extends Scene
         if (keyboard)
         {
             keyboard.once('keydown-R', () => this.replay());
-            keyboard.once('keydown-ENTER', () => this.isLast ? this.toMenu() : this.next());
+            keyboard.once('keydown-ENTER', () =>
+                this.levelText ? this.toEditor() : this.isLast ? this.toMenu() : this.next());
         }
     }
 
     //  scene.start from this scene stops the overlay and (re)starts Game with the given level
     private replay ()
     {
-        this.scene.start('Game', { levelIndex: this.levelIndex });
+        const data: GameData = this.levelText ? { levelText: this.levelText } : { levelIndex: this.levelIndex };
+        this.scene.start('Game', data);
     }
 
     private next ()
     {
         this.scene.start('Game', { levelIndex: this.levelIndex + 1 });
+    }
+
+    private toEditor ()
+    {
+        this.scene.stop('Game');
+        this.scene.start('Editor');
     }
 
     private toMenu ()

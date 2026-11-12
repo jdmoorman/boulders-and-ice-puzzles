@@ -113,24 +113,30 @@ export function isTallSet (scene: Scene, set: AutotileSet): boolean
     return height > width;
 }
 
-//  Returns a copy of a level's tiles for the tilemap, with each autotiled tile replaced by the
-//  'tiles' strip index of the frame that fits its neighbours. Tiles of a tall set become
-//  TileIndex.Void, since those are drawn as images instead. The level data itself keeps
-//  plain TileIndex values, which movement relies on.
+//  The tilemap index to draw at (x, y): the 'tiles' strip index of the autotile frame that fits
+//  the tile's neighbours, TileIndex.Void for tiles of a tall set (drawn as images instead; see
+//  addTallTile in LevelLoader.ts), or the plain tile for tiles no set covers.
+export function displayTileIndex (
+    tiles: number[][], x: number, y: number, isTall: (set: AutotileSet) => boolean
+): number
+{
+    const tile = tiles[y][x];
+    const setIndex = AUTOTILE_SETS.findIndex(set => set.tiles.includes(tile));
+    if (setIndex < 0)
+    {
+        return tile;
+    }
+    const set = AUTOTILE_SETS[setIndex];
+    if (isTall(set))
+    {
+        return TileIndex.Void;
+    }
+    return autotileBase(setIndex) + autotileFrame(tiles, x, y, set);
+}
+
+//  Returns a copy of a level's tiles for the tilemap (see displayTileIndex). The level data
+//  itself keeps plain TileIndex values, which movement relies on.
 export function autotileLevel (tiles: number[][], isTall: (set: AutotileSet) => boolean): number[][]
 {
-    return tiles.map((row, y) => row.map((tile, x) =>
-    {
-        const setIndex = AUTOTILE_SETS.findIndex(set => set.tiles.includes(tile));
-        if (setIndex < 0)
-        {
-            return tile;
-        }
-        const set = AUTOTILE_SETS[setIndex];
-        if (isTall(set))
-        {
-            return TileIndex.Void;
-        }
-        return autotileBase(setIndex) + autotileFrame(tiles, x, y, set);
-    }));
+    return tiles.map((row, y) => row.map((_tile, x) => displayTileIndex(tiles, x, y, isTall)));
 }

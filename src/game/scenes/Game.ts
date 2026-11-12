@@ -13,11 +13,15 @@ const DIRECTIONS: readonly Direction[] = ['up', 'down', 'left', 'right'];
 export interface GameData
 {
     levelIndex?: number;
+    //  Set when playtesting from the editor: the level to play, instead of LEVELS[levelIndex]
+    levelText?: string;
 }
 
 export class Game extends Scene
 {
     levelIndex = 0;
+    //  The editor's level being playtested, or null for a level from LEVELS
+    levelText: string | null = null;
     level: BuiltLevel;
     playerPos: GridPoint;
     //  True while the player or a pushed boulder is moving; input is ignored until it settles
@@ -39,6 +43,13 @@ export class Game extends Scene
     init (data: GameData)
     {
         this.levelIndex = data.levelIndex ?? 0;
+        this.levelText = data.levelText ?? null;
+    }
+
+    //  Data that starts this same level again
+    private restartData (): GameData
+    {
+        return this.levelText ? { levelText: this.levelText } : { levelIndex: this.levelIndex };
     }
 
     create ()
@@ -46,7 +57,7 @@ export class Game extends Scene
         this.cameras.main.setBackgroundColor(0x141a22);
 
         //  level.data.boulders holds live boulder positions, in the same order as level.boulders sprites
-        const data = parseLevel(this.cache.text.get(LEVELS[this.levelIndex].key));
+        const data = parseLevel(this.levelText ?? this.cache.text.get(LEVELS[this.levelIndex].key));
         this.level = buildLevel(this, data);
         this.playerPos = { ...data.player };
         this.isMoving = false;
@@ -71,10 +82,11 @@ export class Game extends Scene
             {
                 if (!this.levelComplete)
                 {
-                    this.scene.restart({ levelIndex: this.levelIndex });
+                    this.scene.restart(this.restartData());
                 }
             });
-            keyboard.on('keydown-ESC', () => this.pauseGame());
+            //  While playtesting, Esc goes straight back to the editor
+            keyboard.on('keydown-ESC', () => this.levelText ? this.scene.start('Editor') : this.pauseGame());
             keyboard.on('keydown-P', () => this.pauseGame());
 
             //  Keys released while paused can still read as held; clear them so the player
@@ -214,7 +226,7 @@ export class Game extends Scene
         {
             return;
         }
-        const data: PauseMenuData = { levelIndex: this.levelIndex };
+        const data: PauseMenuData = { levelIndex: this.levelIndex, levelText: this.levelText ?? undefined };
         this.scene.pause();
         this.scene.launch('PauseMenu', data);
     }
@@ -223,7 +235,8 @@ export class Game extends Scene
     {
         const data: LevelCompleteData = {
             levelIndex: this.levelIndex,
-            isLast: this.levelIndex >= LEVELS.length - 1
+            isLast: this.levelIndex >= LEVELS.length - 1,
+            levelText: this.levelText ?? undefined
         };
         this.scene.launch('LevelComplete', data);
     }
