@@ -33,11 +33,13 @@ export class EditorHud extends Scene
 
         const { width, height } = this.scale;
 
-        //  Top bar: Menu on the left; Open, Export and Play on the right
+        //  Top bar: Menu, Undo and Redo on the left; Open, Export and Play on the right
         this.add.rectangle(0, 0, width, 72, BAR_COLOR, 0.92).setOrigin(0).setInteractive();
         const top = 36;
         const size = { height: 52 };
         addButton(this, 80, top, 'Menu', () => this.editor.toMainMenu(), { ...size, width: 130 });
+        addButton(this, 240, top, 'Undo', () => this.editor.undo(), { ...size, width: 130 });
+        addButton(this, 390, top, 'Redo', () => this.editor.redo(), { ...size, width: 130 });
         addButton(this, 640, top, 'Open', () => this.openPopup(), { ...size, width: 130 });
         addButton(this, 790, top, 'Export', () => this.editor.exportLevel(), { ...size, width: 150 });
         addButton(this, 940, top, 'Play', () => this.editor.play(), { ...size, width: 130 });

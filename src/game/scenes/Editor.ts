@@ -1,5 +1,5 @@
 import { Scene, Scenes, GameObjects, Input, Tilemaps } from 'phaser';
-import { cellKey, EditorLevel, EditorTool } from '../editor/EditorLevel';
+import { cellKey, EditorLevel, EditorSnapshot, EditorTool } from '../editor/EditorLevel';
 import { parseLevel, GridPoint } from '../levels/LevelParser';
 import { TILE_SIZE, TileIndex } from '../levels/Tiles';
 import { LEVELS } from '../levels/levelList';
@@ -16,11 +16,15 @@ interface EditorState
     scrollX: number;
     scrollY: number;
     zoom: number;
+    //  Snapshots from before each edit (undo) and before each undo (redo), oldest first
+    undo: EditorSnapshot[];
+    redo: EditorSnapshot[];
 }
 
 const STATE_KEY = 'editorState';
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2;
+const HISTORY_LIMIT = 1000;
 //  Above every y-sorted object on the canvas
 const OVERLAY_DEPTH = 1e7;
 
@@ -58,6 +62,9 @@ export class Editor extends Scene
     private hover: GameObjects.Rectangle;
     //  The tool being dragged with, and the last cell it was applied to
     private stroke: { tool: EditorTool, last: GridPoint } | null = null;
+    //  The level as it was when the mouse was pressed; added to the undo history once the
+    //  gesture changes something
+    private pending: EditorSnapshot | null = null;
     //  Set when the registry already holds the state to start from next time
     private skipSave = false;
 
@@ -78,6 +85,7 @@ export class Editor extends Scene
         this.playerSprite = null;
         this.goalImage = null;
         this.stroke = null;
+        this.pending = null;
         this.skipSave = false;
 
         const camera = this.cameras.main;
@@ -85,6 +93,8 @@ export class Editor extends Scene
 
         const saved = this.registry.get(STATE_KEY) as EditorState | undefined;
         this.state = saved ?? this.initialState(new EditorLevel(), 'wall');
+        this.state.undo ??= [];
+        this.state.redo ??= [];
         camera.setScroll(this.state.scrollX, this.state.scrollY).setZoom(this.state.zoom);
 
         this.isTall = set => isTallSet(this, set);
@@ -112,6 +122,33 @@ export class Editor extends Scene
     {
         this.state.tool = tool;
         this.events.emit(EDITOR_EVENTS.TOOL, tool);
+    }
+
+    undo ()
+    {
+        this.stepHistory(this.state.undo, this.state.redo, 'Nothing to undo.');
+    }
+
+    redo ()
+    {
+        this.stepHistory(this.state.redo, this.state.undo, 'Nothing to redo.');
+    }
+
+    //  Restores the newest snapshot in `from`, saving the current level to `to`
+    private stepHistory (from: EditorSnapshot[], to: EditorSnapshot[], emptyMessage: string)
+    {
+        if (this.stroke)
+        {
+            return;
+        }
+        const snapshot = from.pop();
+        if (!snapshot)
+        {
+            this.message(emptyMessage);
+            return;
+        }
+        to.push(this.state.level.snapshot());
+        this.redrawCells(this.state.level.restore(snapshot));
     }
 
     //  Starts a playtest of the current map, or reports why it can't be played
@@ -176,7 +213,9 @@ export class Editor extends Scene
             tool,
             scrollX: centre - camera.width / 2,
             scrollY: centre - camera.height / 2,
-            zoom: 1
+            zoom: 1,
+            undo: [],
+            redo: []
         };
     }
 
@@ -286,6 +325,24 @@ export class Editor extends Scene
     private applyAt (tool: EditorTool, x: number, y: number)
     {
         const changed = this.state.level.applyTool(tool, x, y);
+        if (changed.length > 0 && this.pending)
+        {
+            const { undo } = this.state;
+            undo.push(this.pending);
+            if (undo.length > HISTORY_LIMIT)
+            {
+                undo.shift();
+            }
+            this.state.redo.length = 0;
+            this.pending = null;
+        }
+        this.redrawCells(changed);
+    }
+
+    //  Redraws changed cells, their neighbours' terrain (autotile frames depend on neighbours),
+    //  and the player and exit
+    private redrawCells (changed: GridPoint[])
+    {
         for (const cell of changed)
         {
             for (let dy = -1; dy <= 1; dy++)
@@ -323,6 +380,7 @@ export class Editor extends Scene
             }
             const cell = this.cellAt(pointer);
             this.stroke = DRAG_TOOLS.has(tool) ? { tool, last: cell } : null;
+            this.pending = this.state.level.snapshot();
             this.applyAt(tool, cell.x, cell.y);
         });
 
@@ -371,6 +429,31 @@ export class Editor extends Scene
             PALETTE.forEach(({ tool }, i) =>
             {
                 keyboard.on(`keydown-${numberKeys[i]}`, () => this.selectTool(tool));
+            });
+
+            //  Ctrl/Cmd+Z undoes; Ctrl/Cmd+Shift+Z and Ctrl/Cmd+Y redo
+            keyboard.on('keydown-Z', (event: KeyboardEvent) =>
+            {
+                if (event.ctrlKey || event.metaKey)
+                {
+                    event.preventDefault();
+                    if (event.shiftKey)
+                    {
+                        this.redo();
+                    }
+                    else
+                    {
+                        this.undo();
+                    }
+                }
+            });
+            keyboard.on('keydown-Y', (event: KeyboardEvent) =>
+            {
+                if (event.ctrlKey || event.metaKey)
+                {
+                    event.preventDefault();
+                    this.redo();
+                }
             });
         }
     }

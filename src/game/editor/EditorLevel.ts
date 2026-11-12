@@ -10,6 +10,17 @@ const MARGIN = 16;
 
 export const cellKey = (x: number, y: number) => `${x},${y}`;
 const isGround = (tile: number) => tile === TileIndex.Floor || tile === TileIndex.Ice;
+const samePoint = (a: GridPoint | null, b: GridPoint | null) =>
+    a === b || (a !== null && b !== null && a.x === b.x && a.y === b.y);
+
+//  A copy of a level's contents, for undo and redo. Tiles are flattened row by row, one byte each.
+export interface EditorSnapshot
+{
+    tiles: Int8Array;
+    player: GridPoint | null;
+    goal: GridPoint | null;
+    boulders: string[];
+}
 
 //  The level being edited: a fixed-size square canvas of tiles plus the player, boulders and
 //  exit. Plain data, so it can be kept in the registry across playtests.
@@ -65,6 +76,60 @@ export class EditorLevel
         return this.boulders.has(cellKey(x, y));
     }
 
+    snapshot (): EditorSnapshot
+    {
+        const tiles = new Int8Array(this.size * this.size);
+        this.tiles.forEach((row, y) => tiles.set(row, y * this.size));
+        return {
+            tiles,
+            player: this.player && { ...this.player },
+            goal: this.goal && { ...this.goal },
+            boulders: [...this.boulders]
+        };
+    }
+
+    //  Replaces the level's contents with a snapshot. Returns the cells that changed.
+    restore (s: EditorSnapshot): GridPoint[]
+    {
+        const changed: GridPoint[] = [];
+        for (let y = 0; y < this.size; y++)
+        {
+            const row = this.tiles[y];
+            for (let x = 0; x < this.size; x++)
+            {
+                const tile = s.tiles[y * this.size + x];
+                if (row[x] !== tile)
+                {
+                    row[x] = tile;
+                    changed.push({ x, y });
+                }
+            }
+        }
+
+        const boulders = new Set(s.boulders);
+        for (const k of new Set([...this.boulders, ...boulders]))
+        {
+            if (this.boulders.has(k) !== boulders.has(k))
+            {
+                const [x, y] = k.split(',').map(Number);
+                changed.push({ x, y });
+            }
+        }
+        this.boulders.clear();
+        boulders.forEach(k => this.boulders.add(k));
+
+        for (const [now, then] of [[this.player, s.player], [this.goal, s.goal]] as const)
+        {
+            if (!samePoint(now, then))
+            {
+                changed.push(...[now, then].filter((p): p is GridPoint => p !== null));
+            }
+        }
+        this.player = s.player && { ...s.player };
+        this.goal = s.goal && { ...s.goal };
+        return changed;
+    }
+
     //  Applies a tool to the cell at (x, y). Returns the cells whose contents changed (the
     //  player or exit moving away changes their old cell too), or [] if nothing changed.
     applyTool (tool: EditorTool, x: number, y: number): GridPoint[]
@@ -74,7 +139,7 @@ export class EditorLevel
             return [];
         }
 
-        const before = this.snapshot(x, y);
+        const before = this.cellState(x, y);
         const oldPlayer = this.player;
         const oldGoal = this.goal;
         const changed: GridPoint[] = [];
@@ -126,7 +191,7 @@ export class EditorLevel
                 break;
         }
 
-        if (this.snapshot(x, y) !== before)
+        if (this.cellState(x, y) !== before)
         {
             changed.push({ x, y });
         }
@@ -231,7 +296,7 @@ export class EditorLevel
     }
 
     //  A string describing everything in a cell, for change detection
-    private snapshot (x: number, y: number): string
+    private cellState (x: number, y: number): string
     {
         return `${this.tiles[y][x]}|${this.isPlayerAt(x, y)}|${this.hasBoulderAt(x, y)}`;
     }
