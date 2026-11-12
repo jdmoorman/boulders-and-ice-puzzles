@@ -14,7 +14,7 @@ const BAR_DEPTH = 10;
 const KEY_SCROLL = 80;
 
 //  Every level pack, each with a heading and a grid of level buttons showing a thumbnail of the
-//  level and its number, on one screen.
+//  level, on one screen.
 //  Scrolls with the mouse wheel or arrow keys when it's taller than the screen; the Back
 //  button stays fixed at the bottom. All levels are unlocked.
 export class LevelSelect extends Scene
@@ -58,8 +58,6 @@ export class LevelSelect extends Scene
                 const thumbnail = levelThumbnail(this, level, CELL_W - ICON_INSET * 2, CELL_H - ICON_INSET * 2);
                 addIconButton(this, x, by, [{ key: thumbnail, scale: 1 }],
                     () => this.scene.start('Game', { levelIndex }), { width: CELL_W, height: CELL_H });
-                this.add.text(x - CELL_W / 2 + 6, by - CELL_H / 2 + 2, String(i + 1),
-                    { ...TEXT_STYLE, fontSize: 20, strokeThickness: 5 });
             });
 
             y = gridTop + (rows - 1) * STEP_Y + CELL_H / 2 + 60;
