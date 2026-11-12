@@ -44,10 +44,6 @@ export function addTallTile (
         .setOrigin(0, 1)
         .setScale(scale)
         .setDepth(bottom);
-    //  Scaled objects aren't pixel-snapped by default ('safeAuto'), which lets neighbouring
-    //  tiles drift apart by a pixel while the camera scrolls. These are axis-aligned at a whole
-    //  scale on a tile grid, so snapping every corner is safe and keeps their shared edges together.
-    image.vertexRoundMode = 'fullAuto';
     return image;
 }
 
