@@ -35,7 +35,14 @@ export const LEVEL_PACKS: readonly LevelPack[] = [
         name: 'Test',
         levels: [
             { key: 'level-test-demo', file: 'levels/test/demo.txt' },
-            { key: 'level-test-autotile', file: 'levels/test/autotile-test.txt' }
+            { key: 'level-test-autotile', file: 'levels/test/autotile-test.txt' },
+            { key: 'stub1', file: 'levels/test/stub.txt' },
+            { key: 'stub1', file: 'levels/test/stub.txt' },
+            { key: 'stub1', file: 'levels/test/stub.txt' },
+            { key: 'stub1', file: 'levels/test/stub.txt' },
+            { key: 'stub1', file: 'levels/test/stub.txt' },
+            { key: 'stub1', file: 'levels/test/stub.txt' },
+            { key: 'stub1', file: 'levels/test/stub.txt' },
         ]
     }
 ];
