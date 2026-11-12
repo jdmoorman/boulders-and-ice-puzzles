@@ -1,5 +1,6 @@
 import { Scene, Textures } from 'phaser';
 import { TILE_SIZE, TileIndex } from './levels/Tiles';
+import { PLAYER_FRAME_WIDTH } from './playerAnimations';
 import {
     AUTOTILE_COLUMNS, AUTOTILE_FRAMES, AUTOTILE_SETS, ISOLATED_FRAME, autotileBase,
     autotileFrameSize, isTallSet
@@ -88,6 +89,10 @@ export function generateTextures (scene: Scene): void
     g.strokeStyle = '#f2c230';
     g.stroke();
     goal.refresh();
+
+    //  The standing, facing-down player (sheet frame 1) trimmed to its visible pixels, so the
+    //  editor palette can draw the figure itself as big as the other icons
+    scene.textures.get('player').add('palette', 0, PLAYER_FRAME_WIDTH + 2, 6, 14, 19);
 
     addArrowTexture(scene, 'icon-undo', false);
     addArrowTexture(scene, 'icon-redo', true);
