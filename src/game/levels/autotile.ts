@@ -75,6 +75,8 @@ MASKS_BY_FRAME.forEach((mask, frame) =>
 
 //  The frame for a tile with no joined neighbours, used for the plain TileIndex slots
 export const ISOLATED_FRAME = FRAME_BY_MASK.get(0)!;
+//  The frame for a tile joined on all 8 sides
+export const SURROUNDED_FRAME = FRAME_BY_MASK.get(255)!;
 
 //  The neighbour mask of the tile at (x, y) in a set.
 export function autotileMask (tiles: number[][], x: number, y: number, set: AutotileSet): number

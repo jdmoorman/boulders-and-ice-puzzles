@@ -29,14 +29,7 @@ const HISTORY_LIMIT = 1000;
 const OVERLAY_DEPTH = 1e7;
 
 //  Palette tools, in order (keys 1-6)
-export const PALETTE: readonly { tool: EditorTool, label: string }[] = [
-    { tool: 'wall', label: 'Wall' },
-    { tool: 'snow', label: 'Snow' },
-    { tool: 'ice', label: 'Ice' },
-    { tool: 'exit', label: 'Exit' },
-    { tool: 'player', label: 'Player' },
-    { tool: 'boulder', label: 'Boulder' }
-];
+export const PALETTE: readonly EditorTool[] = ['wall', 'snow', 'ice', 'exit', 'player', 'boulder'];
 
 //  Tools that paint every cell along a drag. The others (exit, player) are placed
 //  once, on the cell where the mouse was pressed.
@@ -426,7 +419,7 @@ export class Editor extends Scene
         if (keyboard)
         {
             const numberKeys = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX'];
-            PALETTE.forEach(({ tool }, i) =>
+            PALETTE.forEach((tool, i) =>
             {
                 keyboard.on(`keydown-${numberKeys[i]}`, () => this.selectTool(tool));
             });

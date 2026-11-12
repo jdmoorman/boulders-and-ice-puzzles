@@ -39,3 +39,42 @@ export function addButton (
 
     return button;
 }
+
+//  One layer of an icon button's picture: a texture and, optionally, a frame of it
+export interface ButtonIcon
+{
+    key: string;
+    frame?: string | number;
+}
+
+const ICON_INSET = 8;
+
+//  Adds a clickable rectangle button showing images instead of a label. The icons are drawn in
+//  order, each scaled to fit inside the button without stretching.
+export function addIconButton (
+    scene: Scene,
+    x: number,
+    y: number,
+    icons: readonly ButtonIcon[],
+    onClick: () => void,
+    { width = 64, height = 64 }: ButtonSize = {}
+): GameObjects.Rectangle
+{
+    const button = scene.add.rectangle(x, y, width, height, FILL)
+        .setStrokeStyle(3, 0x000000)
+        .setInteractive({ useHandCursor: true });
+
+    const images = icons.map(({ key, frame }) =>
+    {
+        const image = scene.add.image(x, y, key, frame);
+        const scale = Math.min((width - ICON_INSET * 2) / image.width, (height - ICON_INSET * 2) / image.height);
+        return image.setScale(scale);
+    });
+    button.once(GameObjects.Events.DESTROY, () => images.forEach(image => image.destroy()));
+
+    button.on('pointerover', () => button.setFillStyle(FILL_HOVER));
+    button.on('pointerout', () => button.setFillStyle(FILL));
+    button.on('pointerup', onClick);
+
+    return button;
+}

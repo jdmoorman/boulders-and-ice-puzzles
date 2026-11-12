@@ -65,6 +65,11 @@ export function generateTextures (scene: Scene): void
         }
     });
 
+    //  One frame per strip slot, for drawing single tiles as images (e.g. palette icons)
+    for (let i = 0; i < tileCount; i++)
+    {
+        tiles.add(i, 0, i * S, 0, S, S);
+    }
     tiles.refresh();
     tiles.setFilter(Textures.FilterMode.NEAREST);
 

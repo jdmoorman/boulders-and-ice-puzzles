@@ -1,5 +1,7 @@
 import { Scene, Scenes, GameObjects, Time } from 'phaser';
-import { addButton, TEXT_STYLE } from '../ui/Button';
+import { addButton, addIconButton, ButtonIcon, TEXT_STYLE } from '../ui/Button';
+import { TileIndex } from '../levels/Tiles';
+import { AUTOTILE_SETS, ISOLATED_FRAME, SURROUNDED_FRAME, autotileBase } from '../levels/autotile';
 import { LEVELS } from '../levels/levelList';
 import { EditorTool } from '../editor/EditorLevel';
 import { Editor, EDITOR_EVENTS, PALETTE } from './Editor';
@@ -7,6 +9,24 @@ import { Editor, EDITOR_EVENTS, PALETTE } from './Editor';
 const BAR_COLOR = 0x24303f;
 const SELECTED_STROKE = 0xf2c230;
 const MESSAGE_MS = 3000;
+const PALETTE_BUTTON_SIZE = 64;
+const PALETTE_STEP = 84;
+
+const setOf = (tile: TileIndex) => AUTOTILE_SETS.findIndex(set => set.tiles.includes(tile));
+const WALL_ICON: ButtonIcon = { key: AUTOTILE_SETS[setOf(TileIndex.Wall)].texture, frame: ISOLATED_FRAME };
+//  Snow as if surrounded by snow, so it shows no edges
+const SNOW_ICON: ButtonIcon = { key: 'tiles', frame: autotileBase(setOf(TileIndex.Floor)) + SURROUNDED_FRAME };
+
+//  The picture on each palette button, drawn bottom layer first
+const PALETTE_ICONS: Readonly<Record<EditorTool, readonly ButtonIcon[]>> = {
+    wall: [WALL_ICON],
+    snow: [SNOW_ICON],
+    ice: [{ key: 'tiles', frame: TileIndex.Ice }],
+    exit: [SNOW_ICON, { key: 'goal' }],
+    player: [{ key: 'player', frame: 1 }],
+    boulder: [{ key: 'boulder' }],
+    erase: []
+};
 
 //  The level editor's palette, buttons and messages. Runs on top of the Editor scene with its
 //  own camera, so it isn't panned or zoomed. Its bars and buttons are interactive, so clicks on
@@ -46,13 +66,17 @@ export class EditorHud extends Scene
 
         //  Bottom bar: the palette (keys 1-6)
         this.add.rectangle(0, height - 80, width, 80, BAR_COLOR, 0.92).setOrigin(0).setInteractive();
-        const step = 156;
-        PALETTE.forEach(({ tool, label }, i) =>
+        const paletteSize = { width: PALETTE_BUTTON_SIZE, height: PALETTE_BUTTON_SIZE };
+        PALETTE.forEach((tool, i) =>
         {
-            const x = width / 2 + (i - (PALETTE.length - 1) / 2) * step;
-            const button = addButton(this, x, height - 40, label, () => this.editor.selectTool(tool),
-                { width: 148, height: 56 });
+            const x = width / 2 + (i - (PALETTE.length - 1) / 2) * PALETTE_STEP;
+            const y = height - 40;
+            const button = addIconButton(this, x, y, PALETTE_ICONS[tool], () => this.editor.selectTool(tool), paletteSize);
             this.paletteButtons.set(tool, button);
+
+            //  The tool's shortcut key, in the button's top-left corner
+            const half = PALETTE_BUTTON_SIZE / 2;
+            this.add.text(x - half + 4, y - half + 2, `${i + 1}`, { ...TEXT_STYLE, fontSize: 16, strokeThickness: 4 });
         });
         this.highlightTool(this.editor.tool);
 
