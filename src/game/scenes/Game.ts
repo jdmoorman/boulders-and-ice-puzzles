@@ -1,7 +1,7 @@
 import { Scene, Scenes, Input, GameObjects } from 'phaser';
 import { parseLevel, GridPoint } from '../levels/LevelParser';
 import { buildLevel, BuiltLevel, tileCenter, ySortDepth } from '../levels/LevelLoader';
-import { LEVELS } from '../levels/levelList';
+import { LEVELS, isLastInPack } from '../levels/levelList';
 import { resolveMove, Direction } from '../movement/Movement';
 import { MOVEMENT } from '../settings';
 import { playerAnimKey, PlayerAnimKind } from '../playerAnimations';
@@ -242,7 +242,7 @@ export class Game extends Scene
     {
         const data: LevelCompleteData = {
             levelIndex: this.levelIndex,
-            isLast: this.levelIndex >= LEVELS.length - 1,
+            isLast: isLastInPack(this.levelIndex),
             levelText: this.levelText ?? undefined
         };
         this.scene.launch('LevelComplete', data);

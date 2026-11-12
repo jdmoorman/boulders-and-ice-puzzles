@@ -1,14 +1,22 @@
-import { Scene } from 'phaser';
-import { LEVELS } from '../levels/levelList';
-import { addButton, TEXT_STYLE } from '../ui/Button';
+import { Scene, Input } from 'phaser';
+import { LEVEL_PACKS, LEVELS } from '../levels/levelList';
+import { addButton, buttonLabel, TEXT_STYLE } from '../ui/Button';
 
-const PER_ROW = 5;
+const PER_ROW = 6;
 const CELL = 96;
 const GAP = 24;
+const STEP = CELL + GAP;
+const BAR_HEIGHT = 120;
+const BAR_DEPTH = 10;
+const KEY_SCROLL = 80;
 
-//  Grid of numbered buttons, one per level in LEVELS. All levels are unlocked.
+//  Every level pack, each with a heading and a grid of numbered level buttons, on one screen.
+//  Scrolls with the mouse wheel or arrow keys when it's taller than the screen; the Back
+//  button stays fixed at the bottom. All levels are unlocked.
 export class LevelSelect extends Scene
 {
+    private maxScroll = 0;
+
     constructor ()
     {
         super('LevelSelect');
@@ -18,32 +26,67 @@ export class LevelSelect extends Scene
     {
         const { width, height } = this.scale;
         const cx = width / 2;
+        const camera = this.cameras.main;
+        camera.setScroll(0, 0);
 
-        this.add.image(cx, height / 2, 'background');
+        this.add.image(cx, height / 2, 'background').setScrollFactor(0);
 
-        this.add.text(cx, 140, 'Select Level', { ...TEXT_STYLE, fontSize: 48, strokeThickness: 8 })
+        this.add.text(cx, 90, 'Select Level', { ...TEXT_STYLE, fontSize: 48, strokeThickness: 8 })
             .setOrigin(0.5);
 
-        const rows = Math.ceil(LEVELS.length / PER_ROW);
-        const step = CELL + GAP;
-        const gridTop = 260;
-
-        LEVELS.forEach((_level, i) =>
+        let y = 180;
+        for (const pack of LEVEL_PACKS)
         {
-            const row = Math.floor(i / PER_ROW);
-            const col = i % PER_ROW;
-            //  Center each row on its own number of buttons, so a short last row is centered too
-            const inRow = row < rows - 1 ? PER_ROW : LEVELS.length - row * PER_ROW;
-            const x = cx + (col - (inRow - 1) / 2) * step;
-            const y = gridTop + row * step;
+            this.add.text(cx, y, pack.name, { ...TEXT_STYLE, fontSize: 36 }).setOrigin(0.5);
+            const gridTop = y + 50 + CELL / 2;
+            const rows = Math.ceil(pack.levels.length / PER_ROW);
 
-            addButton(this, x, y, String(i + 1), () => this.scene.start('Game', { levelIndex: i }),
-                { width: CELL, height: CELL });
-        });
+            pack.levels.forEach((level, i) =>
+            {
+                const row = Math.floor(i / PER_ROW);
+                const col = i % PER_ROW;
+                //  Center each row on its own number of buttons, so a short last row is centered too
+                const inRow = row < rows - 1 ? PER_ROW : pack.levels.length - row * PER_ROW;
+                const x = cx + (col - (inRow - 1) / 2) * STEP;
+                const levelIndex = LEVELS.findIndex(l => l.key === level.key);
 
-        addButton(this, cx, height - 100, 'Back', () => this.back());
+                addButton(this, x, gridTop + row * STEP, String(i + 1),
+                    () => this.scene.start('Game', { levelIndex }), { width: CELL, height: CELL });
+            });
 
-        this.input.keyboard?.once('keydown-ESC', () => this.back());
+            y = gridTop + (rows - 1) * STEP + CELL / 2 + 60;
+        }
+
+        //  Fixed bottom bar with Back; it blocks clicks to level buttons scrolled beneath it
+        this.add.rectangle(0, height - BAR_HEIGHT, width, BAR_HEIGHT, 0x000000, 0.45)
+            .setOrigin(0)
+            .setScrollFactor(0)
+            .setDepth(BAR_DEPTH)
+            .setInteractive();
+        const back = addButton(this, cx, height - BAR_HEIGHT / 2, 'Back', () => this.back());
+        for (const object of [back, buttonLabel(back)])
+        {
+            object.setScrollFactor(0).setDepth(BAR_DEPTH + 1);
+        }
+
+        this.maxScroll = Math.max(0, y - (height - BAR_HEIGHT));
+
+        this.input.on(Input.Events.POINTER_WHEEL,
+            (_pointer: Input.Pointer, _over: unknown, _dx: number, dy: number) => this.scrollBy(dy));
+
+        const keyboard = this.input.keyboard;
+        if (keyboard)
+        {
+            keyboard.once('keydown-ESC', () => this.back());
+            keyboard.on('keydown-UP', () => this.scrollBy(-KEY_SCROLL));
+            keyboard.on('keydown-DOWN', () => this.scrollBy(KEY_SCROLL));
+        }
+    }
+
+    private scrollBy (dy: number)
+    {
+        const camera = this.cameras.main;
+        camera.scrollY = Math.min(this.maxScroll, Math.max(0, camera.scrollY + dy));
     }
 
     private back ()

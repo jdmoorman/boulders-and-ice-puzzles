@@ -12,6 +12,14 @@ export interface ButtonSize
     height?: number;
 }
 
+const LABEL_KEY = 'label';
+
+//  The text label of a button made by addButton, e.g. to move or restyle it with the button
+export function buttonLabel (button: GameObjects.Rectangle): GameObjects.Text
+{
+    return button.getData(LABEL_KEY) as GameObjects.Text;
+}
+
 const FILL = 0x3d6fa8;
 const FILL_HOVER = 0x5a8fcc;
 
@@ -32,6 +40,7 @@ export function addButton (
     const text = scene.add.text(x, y, label, { ...TEXT_STYLE, fontSize: 28 }).setOrigin(0.5);
     //  Destroying the button takes its label with it
     button.once(GameObjects.Events.DESTROY, () => text.destroy());
+    button.setData(LABEL_KEY, text);
 
     button.on('pointerover', () => button.setFillStyle(FILL_HOVER));
     button.on('pointerout', () => button.setFillStyle(FILL));

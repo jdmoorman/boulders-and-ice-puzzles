@@ -140,8 +140,7 @@ export class EditorHud extends Scene
 
         LEVELS.forEach((level, i) =>
         {
-            const name = level.file.replace(/^levels\//, '').replace(/\.txt$/, '');
-            this.popup.push(addButton(this, cx, panelTop + 120 + i * rowStep, `${i + 1}. ${name}`, () =>
+            this.popup.push(addButton(this, cx, panelTop + 120 + i * rowStep, `${level.pack.name} ${level.number}`, () =>
             {
                 this.closePopup();
                 this.editor.openLevel(i);
