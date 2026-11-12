@@ -2,6 +2,7 @@ import { Scene, Scenes, Input, GameObjects } from 'phaser';
 import { parseLevel, GridPoint } from '../levels/LevelParser';
 import { buildLevel, BuiltLevel, tileCenter, ySortDepth } from '../levels/LevelLoader';
 import { LEVELS, isLastInPack } from '../levels/levelList';
+import { markCompleted } from '../progress';
 import { resolveMove, Direction } from '../movement/Movement';
 import { MOVEMENT } from '../settings';
 import { playerAnimKey, PlayerAnimKind } from '../playerAnimations';
@@ -240,6 +241,11 @@ export class Game extends Scene
 
     private completeLevel ()
     {
+        //  Editor playtests don't count towards progress
+        if (!this.levelText)
+        {
+            markCompleted(LEVELS[this.levelIndex].key);
+        }
         const data: LevelCompleteData = {
             levelIndex: this.levelIndex,
             isLast: isLastInPack(this.levelIndex),

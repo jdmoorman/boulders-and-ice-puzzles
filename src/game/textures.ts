@@ -96,6 +96,59 @@ export function generateTextures (scene: Scene): void
 
     addArrowTexture(scene, 'icon-undo', false);
     addArrowTexture(scene, 'icon-redo', true);
+    addLockTexture(scene);
+}
+
+//  A padlock, for locked levels: white with a black outline
+function addLockTexture (scene: Scene): void
+{
+    const size = 48;
+    const texture = scene.textures.createCanvas('icon-lock', size, size);
+    if (!texture)
+    {
+        throw new Error("Could not create canvas texture 'icon-lock'");
+    }
+    const c = texture.context;
+    c.lineJoin = 'round';
+
+    const shackle = () =>
+    {
+        c.beginPath();
+        c.arc(24, 20, 9, Math.PI, 0);
+        c.lineTo(33, 24);
+        c.moveTo(15, 20);
+        c.lineTo(15, 24);
+        c.stroke();
+    };
+    const body = () =>
+    {
+        c.beginPath();
+        c.roundRect(10, 22, 28, 22, 4);
+    };
+
+    //  Black outline first, then white on top
+    c.strokeStyle = '#000000';
+    c.lineWidth = 10;
+    shackle();
+    c.lineWidth = 6;
+    body();
+    c.stroke();
+
+    c.strokeStyle = '#ffffff';
+    c.lineWidth = 5;
+    shackle();
+    c.fillStyle = '#ffffff';
+    body();
+    c.fill();
+
+    //  Keyhole
+    c.fillStyle = '#000000';
+    c.beginPath();
+    c.arc(24, 31, 3.5, 0, Math.PI * 2);
+    c.fill();
+    c.fillRect(22.5, 32, 3, 7);
+
+    texture.refresh();
 }
 
 //  A curved arrow (the classic undo symbol): an arc over the top, with the head on the left

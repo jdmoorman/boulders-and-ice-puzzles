@@ -2,6 +2,7 @@ import { Scene, Input } from 'phaser';
 import { LEVEL_PACKS, LEVELS } from '../levels/levelList';
 import { addButton, addIconButton, buttonLabel, ICON_INSET, TEXT_STYLE } from '../ui/Button';
 import { levelThumbnail } from '../levels/thumbnail';
+import { isUnlocked } from '../progress';
 
 const PER_ROW = 5;
 const CELL_W = 152;
@@ -16,7 +17,8 @@ const KEY_SCROLL = 80;
 //  Every level pack, each with a heading and a grid of level buttons showing a thumbnail of the
 //  level, on one screen.
 //  Scrolls with the mouse wheel or arrow keys when it's taller than the screen; the Back
-//  button stays fixed at the bottom. All levels are unlocked.
+//  button stays fixed at the bottom. Levels after the first in a pack are locked until the one
+//  before them is completed (see progress.ts).
 export class LevelSelect extends Scene
 {
     private maxScroll = 0;
@@ -56,8 +58,16 @@ export class LevelSelect extends Scene
                 const levelIndex = LEVELS.findIndex(l => l.key === level.key);
 
                 const thumbnail = levelThumbnail(this, level, CELL_W - ICON_INSET * 2, CELL_H - ICON_INSET * 2);
-                addIconButton(this, x, by, [{ key: thumbnail, scale: 1 }],
+                const button = addIconButton(this, x, by, [{ key: thumbnail, scale: 1 }],
                     () => this.scene.start('Game', { levelIndex }), { width: CELL_W, height: CELL_H });
+
+                //  Locked until the previous level in the pack is completed: dimmed, with a padlock
+                if (!isUnlocked(levelIndex))
+                {
+                    button.disableInteractive();
+                    this.add.rectangle(x, by, CELL_W, CELL_H, 0x000000, 0.55);
+                    this.add.image(x, by, 'icon-lock');
+                }
             });
 
             y = gridTop + (rows - 1) * STEP_Y + CELL_H / 2 + 60;
