@@ -1,6 +1,6 @@
 import { Scene } from 'phaser';
 import { addButton, TEXT_STYLE } from '../ui/Button';
-import type { GameData } from './Game';
+import { GameData, leaveGame } from './Game';
 
 export interface LevelCompleteData
 {
@@ -83,13 +83,11 @@ export class LevelComplete extends Scene
 
     private toEditor ()
     {
-        this.scene.stop('Game');
-        this.scene.start('Editor');
+        leaveGame(this, 'Editor');
     }
 
     private toMenu ()
     {
-        this.scene.stop('Game');
-        this.scene.start('MainMenu');
+        leaveGame(this, 'MainMenu');
     }
 }

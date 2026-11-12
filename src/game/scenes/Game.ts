@@ -17,6 +17,13 @@ export interface GameData
     levelText?: string;
 }
 
+//  Stops Game and starts another scene, for overlays (pause menu, level complete) leaving play
+export function leaveGame (scene: Scene, target: 'Editor' | 'MainMenu'): void
+{
+    scene.scene.stop('Game');
+    scene.scene.start(target);
+}
+
 export class Game extends Scene
 {
     levelIndex = 0;
