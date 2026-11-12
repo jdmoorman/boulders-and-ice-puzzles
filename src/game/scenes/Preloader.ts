@@ -42,7 +42,7 @@ export class Preloader extends Scene
         });
         this.load.image('boulder', 'rock.png');
         this.load.image('wallAutotile', 'buch_wall_autotile.png');
-        this.load.image('snowAutotile', 'snow_autotile.png');
+        this.load.image('snowAutotile', 'snow_autotile4.png');
         this.load.image('ice', 'ice.png');
 
         for (const level of LEVELS)
