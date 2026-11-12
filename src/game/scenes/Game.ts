@@ -36,7 +36,7 @@ export class Game extends Scene
     //  True once the player has reached the exit; gameplay input stops
     levelComplete = false;
     //  Direction the player sprite faces; levels start facing down
-    facing: Direction = 'up';
+    facing: Direction = 'down';
 
     private directionKeys: Record<Direction, Input.Keyboard.Key[]> | null = null;
     //  Direction whose blocked move was already reported, so a held key reports it once
@@ -70,7 +70,7 @@ export class Game extends Scene
         this.isMoving = false;
         this.levelComplete = false;
         this.reportedDir = null;
-        this.facing = 'up';
+        this.facing = 'down';
         this.playPlayerAnim('idle');
 
         const keyboard = this.input.keyboard;
