@@ -58,8 +58,8 @@ export class EditorHud extends Scene
         const top = 36;
         const size = { height: 52 };
         addButton(this, 80, top, 'Menu', () => this.editor.toMainMenu(), { ...size, width: 130 });
-        addButton(this, 240, top, 'Undo', () => this.editor.undo(), { ...size, width: 130 });
-        addButton(this, 390, top, 'Redo', () => this.editor.redo(), { ...size, width: 130 });
+        addIconButton(this, 200, top, [{ key: 'icon-undo' }], () => this.editor.undo(), { ...size, width: 72 });
+        addIconButton(this, 286, top, [{ key: 'icon-redo' }], () => this.editor.redo(), { ...size, width: 72 });
         addButton(this, 640, top, 'Open', () => this.openPopup(), { ...size, width: 130 });
         addButton(this, 790, top, 'Export', () => this.editor.exportLevel(), { ...size, width: 150 });
         addButton(this, 940, top, 'Play', () => this.editor.play(), { ...size, width: 130 });

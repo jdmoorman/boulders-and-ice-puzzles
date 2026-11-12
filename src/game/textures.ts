@@ -88,4 +88,60 @@ export function generateTextures (scene: Scene): void
     g.strokeStyle = '#f2c230';
     g.stroke();
     goal.refresh();
+
+    addArrowTexture(scene, 'icon-undo', false);
+    addArrowTexture(scene, 'icon-redo', true);
+}
+
+//  A curved arrow (the classic undo symbol): an arc over the top, with the head on the left
+//  pointing down. `mirrored` flips it to point right, for redo. White with a black outline.
+function addArrowTexture (scene: Scene, key: string, mirrored: boolean): void
+{
+    const size = 48;
+    const texture = scene.textures.createCanvas(key, size, size);
+    if (!texture)
+    {
+        throw new Error(`Could not create canvas texture '${key}'`);
+    }
+    const c = texture.context;
+    if (mirrored)
+    {
+        c.translate(size, 0);
+        c.scale(-1, 1);
+    }
+
+    const shaft = () =>
+    {
+        c.beginPath();
+        c.arc(26, 30, 13, 0, Math.PI, true);
+        c.stroke();
+    };
+    const head = () =>
+    {
+        c.beginPath();
+        c.moveTo(4, 26);
+        c.lineTo(22, 26);
+        c.lineTo(13, 40);
+        c.closePath();
+    };
+
+    c.lineCap = 'round';
+    c.lineJoin = 'round';
+
+    //  Black outline first, then white on top
+    c.strokeStyle = '#000000';
+    c.lineWidth = 11;
+    shaft();
+    head();
+    c.lineWidth = 5;
+    c.stroke();
+
+    c.strokeStyle = '#ffffff';
+    c.lineWidth = 5;
+    shaft();
+    head();
+    c.fillStyle = '#ffffff';
+    c.fill();
+
+    texture.refresh();
 }
