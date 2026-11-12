@@ -67,10 +67,15 @@ export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
             if (set.tiles.includes(tile))
             {
                 const bottom = (y + 1) * TILE_SIZE;
-                scene.add.image(x * TILE_SIZE, bottom, set.texture, autotileFrame(data.tiles, x, y, set))
+                const wall = scene.add.image(x * TILE_SIZE, bottom, set.texture, autotileFrame(data.tiles, x, y, set))
                     .setOrigin(0, 1)
                     .setScale(scale)
                     .setDepth(bottom);
+                //  Scaled objects aren't pixel-snapped by default ('safeAuto'), which lets
+                //  neighbouring walls drift apart by a pixel while the camera scrolls. These are
+                //  axis-aligned at a whole scale on a tile grid, so snapping every corner is safe
+                //  and keeps their shared edges together.
+                wall.vertexRoundMode = 'fullAuto';
             }
         }));
     }
