@@ -34,6 +34,10 @@ export const PALETTE: readonly { tool: EditorTool, label: string }[] = [
     { tool: 'boulder', label: 'Boulder' }
 ];
 
+//  Tools that paint every cell along a drag. The others (exit, player, boulder) are placed
+//  once, on the cell where the mouse was pressed.
+const DRAG_TOOLS: ReadonlySet<EditorTool> = new Set<EditorTool>(['wall', 'snow', 'ice', 'erase']);
+
 //  Events emitted on this scene's event emitter for the HUD
 export const EDITOR_EVENTS = {
     TOOL: 'editor-tool',
@@ -329,7 +333,7 @@ export class Editor extends Scene
                 return;
             }
             const cell = this.cellAt(pointer);
-            this.stroke = { tool, last: cell };
+            this.stroke = DRAG_TOOLS.has(tool) ? { tool, last: cell } : null;
             this.applyAt(tool, cell.x, cell.y);
         });
 
