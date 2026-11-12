@@ -54,9 +54,11 @@ export interface ButtonIcon
 {
     key: string;
     frame?: string | number;
+    //  Draw at this scale instead of scaling to fit the button
+    scale?: number;
 }
 
-const ICON_INSET = 8;
+export const ICON_INSET = 8;
 
 //  Adds a clickable rectangle button showing images instead of a label. The icons are drawn in
 //  order, each scaled to fit inside the button without stretching.
@@ -73,11 +75,11 @@ export function addIconButton (
         .setStrokeStyle(3, 0x000000)
         .setInteractive({ useHandCursor: true });
 
-    const images = icons.map(({ key, frame }) =>
+    const images = icons.map(({ key, frame, scale }) =>
     {
         const image = scene.add.image(x, y, key, frame);
-        const scale = Math.min((width - ICON_INSET * 2) / image.width, (height - ICON_INSET * 2) / image.height);
-        return image.setScale(scale);
+        const fit = Math.min((width - ICON_INSET * 2) / image.width, (height - ICON_INSET * 2) / image.height);
+        return image.setScale(scale ?? fit);
     });
     button.once(GameObjects.Events.DESTROY, () => images.forEach(image => image.destroy()));
 

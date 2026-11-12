@@ -1,16 +1,20 @@
 import { Scene, Input } from 'phaser';
 import { LEVEL_PACKS, LEVELS } from '../levels/levelList';
-import { addButton, buttonLabel, TEXT_STYLE } from '../ui/Button';
+import { addButton, addIconButton, buttonLabel, ICON_INSET, TEXT_STYLE } from '../ui/Button';
+import { levelThumbnail } from '../levels/thumbnail';
 
-const PER_ROW = 6;
-const CELL = 96;
+const PER_ROW = 5;
+const CELL_W = 152;
+const CELL_H = 120;
 const GAP = 24;
-const STEP = CELL + GAP;
+const STEP_X = CELL_W + GAP;
+const STEP_Y = CELL_H + GAP;
 const BAR_HEIGHT = 120;
 const BAR_DEPTH = 10;
 const KEY_SCROLL = 80;
 
-//  Every level pack, each with a heading and a grid of numbered level buttons, on one screen.
+//  Every level pack, each with a heading and a grid of level buttons showing a thumbnail of the
+//  level and its number, on one screen.
 //  Scrolls with the mouse wheel or arrow keys when it's taller than the screen; the Back
 //  button stays fixed at the bottom. All levels are unlocked.
 export class LevelSelect extends Scene
@@ -38,7 +42,7 @@ export class LevelSelect extends Scene
         for (const pack of LEVEL_PACKS)
         {
             this.add.text(cx, y, pack.name, { ...TEXT_STYLE, fontSize: 36 }).setOrigin(0.5);
-            const gridTop = y + 50 + CELL / 2;
+            const gridTop = y + 50 + CELL_H / 2;
             const rows = Math.ceil(pack.levels.length / PER_ROW);
 
             pack.levels.forEach((level, i) =>
@@ -47,14 +51,18 @@ export class LevelSelect extends Scene
                 const col = i % PER_ROW;
                 //  Center each row on its own number of buttons, so a short last row is centered too
                 const inRow = row < rows - 1 ? PER_ROW : pack.levels.length - row * PER_ROW;
-                const x = cx + (col - (inRow - 1) / 2) * STEP;
+                const x = cx + (col - (inRow - 1) / 2) * STEP_X;
+                const by = gridTop + row * STEP_Y;
                 const levelIndex = LEVELS.findIndex(l => l.key === level.key);
 
-                addButton(this, x, gridTop + row * STEP, String(i + 1),
-                    () => this.scene.start('Game', { levelIndex }), { width: CELL, height: CELL });
+                const thumbnail = levelThumbnail(this, level, CELL_W - ICON_INSET * 2, CELL_H - ICON_INSET * 2);
+                addIconButton(this, x, by, [{ key: thumbnail, scale: 1 }],
+                    () => this.scene.start('Game', { levelIndex }), { width: CELL_W, height: CELL_H });
+                this.add.text(x - CELL_W / 2 + 6, by - CELL_H / 2 + 2, String(i + 1),
+                    { ...TEXT_STYLE, fontSize: 20, strokeThickness: 5 });
             });
 
-            y = gridTop + (rows - 1) * STEP + CELL / 2 + 60;
+            y = gridTop + (rows - 1) * STEP_Y + CELL_H / 2 + 60;
         }
 
         //  Fixed bottom bar with Back; it blocks clicks to level buttons scrolled beneath it
