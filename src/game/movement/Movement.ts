@@ -76,7 +76,7 @@ export type MoveResult =
     | { kind: 'walk', path: GridPoint[] }
     | { kind: 'push', boulderIndex: number, path: GridPoint[] }
     //  path is the slide before reaching the exit; empty for a direct step
-    | { kind: 'exit', path: GridPoint[] }
+    | { kind: 'exit', path: GridPoint[], exit: GridPoint }
     | { kind: 'blocked' };
 
 //  Resolves what happens when the player at `from` tries to move in `dir`.
@@ -100,9 +100,10 @@ export function resolveMove (data: LevelData, from: GridPoint, dir: Direction): 
     //  The move stopped because it was blocked (not because it slid onto non-ice)
     //  if nothing was walked, or if it ended on ice.
     const stoppedByBlock = path.length === 0 || tileAt(data, end) === TileIndex.Ice;
-    if (stoppedByBlock && tileAt(data, step(end, dir)) === TileIndex.Goal)
+    const next = step(end, dir);
+    if (stoppedByBlock && tileAt(data, next) === TileIndex.Goal)
     {
-        return { kind: 'exit', path };
+        return { kind: 'exit', path, exit: next };
     }
 
     return path.length > 0 ? { kind: 'walk', path } : { kind: 'blocked' };

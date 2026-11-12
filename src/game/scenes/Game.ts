@@ -148,7 +148,7 @@ export class Game extends Scene
             case 'exit':
                 //  Finish the move by stepping onto the exit tile itself
                 this.levelComplete = true;
-                this.movePlayer([...move.path, this.level.data.goal], () =>
+                this.movePlayer([...move.path, move.exit], () =>
                 {
                     this.playPlayerAnim('idle');
                     this.completeLevel();

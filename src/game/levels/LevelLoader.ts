@@ -112,8 +112,11 @@ export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
     }
 
     //  The exit's ring, over the snow tile under it
-    const goal = tileCenter(data.goal);
-    scene.add.image(goal.x, goal.y, 'goal');
+    if (data.goal)
+    {
+        const goal = tileCenter(data.goal);
+        scene.add.image(goal.x, goal.y, 'goal');
+    }
 
     const boulders = data.boulders.map(b => addBoulder(scene, b));
     const player = addPlayer(scene, data.player);

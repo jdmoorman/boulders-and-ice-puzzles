@@ -42,7 +42,7 @@ export class EditorLevel
             level.tiles[y + oy][x + ox] = tile;
         }));
         level.player = { x: data.player.x + ox, y: data.player.y + oy };
-        level.goal = { x: data.goal.x + ox, y: data.goal.y + oy };
+        level.goal = data.goal && { x: data.goal.x + ox, y: data.goal.y + oy };
         for (const b of data.boulders)
         {
             level.boulders.add(cellKey(b.x + ox, b.y + oy));
@@ -140,19 +140,10 @@ export class EditorLevel
         return changed;
     }
 
-    //  Reasons the level can't be played yet (empty when it's playable).
+    //  Reasons the level can't be played yet (empty when it's playable). An exit is optional.
     problems (): string[]
     {
-        const problems: string[] = [];
-        if (!this.player)
-        {
-            problems.push('a player');
-        }
-        if (!this.goal)
-        {
-            problems.push('an exit');
-        }
-        return problems.length > 0 ? [`Place ${problems.join(' and ')} to play.`] : [];
+        return this.player ? [] : ['Place a player to play.'];
     }
 
     //  The level as text in the .txt level format, trimmed to the cells in use.

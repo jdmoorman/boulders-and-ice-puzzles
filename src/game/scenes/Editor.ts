@@ -121,7 +121,7 @@ export class Editor extends Scene
         const text = this.state.level.toText();
         if (problems.length > 0 || !text)
         {
-            this.message(problems[0] ?? 'Place a player and an exit to play.');
+            this.message(problems[0] ?? 'Place a player to play.');
             return;
         }
         const data: GameData = { levelText: text };

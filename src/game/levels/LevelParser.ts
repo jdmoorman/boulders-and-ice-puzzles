@@ -13,7 +13,8 @@ export interface LevelData
     //  tiles[row][col], using TileIndex values
     tiles: number[][];
     player: GridPoint;
-    goal: GridPoint;
+    //  null for a level with no exit, e.g. an editor playtest before one is placed
+    goal: GridPoint | null;
     boulders: GridPoint[];
 }
 
@@ -102,11 +103,6 @@ export function parseLevel (text: string): LevelData
     if (!player)
     {
         throw new LevelParseError("Level has no player start ('p' or 'P')");
-    }
-
-    if (!goal)
-    {
-        throw new LevelParseError("Level has no goal ('x')");
     }
 
     return { width, height, tiles, player, goal, boulders };
