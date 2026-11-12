@@ -42,6 +42,13 @@ export function markCompleted (levelKey: string): void
     }
 }
 
+//  The first level, in pack order, that hasn't been completed; the very first level if all have
+export function firstUncompletedLevel (): number
+{
+    const keys = load();
+    return Math.max(0, LEVELS.findIndex(level => !keys.has(level.key)));
+}
+
 //  The first level of each pack is always unlocked; every other level unlocks once the level
 //  before it in the pack has been completed.
 export function isUnlocked (levelIndex: number): boolean
