@@ -2,7 +2,6 @@ import { Scene, Scenes, GameObjects, Input, Tilemaps } from 'phaser';
 import { cellKey, EditorLevel, EditorSnapshot, EditorTool } from '../editor/EditorLevel';
 import { parseLevelDraft, GridPoint, LevelParseError } from '../levels/LevelParser';
 import { TILE_SIZE, TileIndex } from '../levels/Tiles';
-import { LEVELS } from '../levels/levelList';
 import { AUTOTILE_SETS, AutotileSet, displayTileIndex, isTallSet } from '../levels/autotile';
 import { addBoulder, addPlayer, addTallTile, tileCenter } from '../levels/LevelLoader';
 import { playerAnimKey } from '../playerAnimations';
@@ -170,13 +169,6 @@ export class Editor extends Scene
         }
         const data: GameData = { levelText: text };
         this.scene.start('Game', data);
-    }
-
-    //  Replaces the map with a level from LEVELS, centred in view
-    openLevel (index: number)
-    {
-        const { key, file } = LEVELS[index];
-        this.loadLevel(EditorLevel.fromLevelData(parseLevelDraft(this.cache.text.get(key))), baseName(file));
     }
 
     //  Lets the user pick a .txt level file to replace the map with
@@ -597,12 +589,6 @@ function lineCells (a: GridPoint, b: GridPoint): GridPoint[]
         cells.push({ x, y });
     }
     return cells;
-}
-
-//  A path's last segment, e.g. 'levels/demo.txt' -> 'demo.txt'
-function baseName (path: string): string
-{
-    return path.slice(path.lastIndexOf('/') + 1);
 }
 
 //  Downloads text as a file, for browsers without a save dialog (it goes to the downloads folder)

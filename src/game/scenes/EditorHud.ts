@@ -2,7 +2,6 @@ import { Scene, Scenes, GameObjects, Time } from 'phaser';
 import { addButton, addIconButton, ButtonIcon, TEXT_STYLE } from '../ui/Button';
 import { TileIndex } from '../levels/Tiles';
 import { AUTOTILE_SETS, ISOLATED_FRAME, SURROUNDED_FRAME, autotileBase } from '../levels/autotile';
-import { LEVELS } from '../levels/levelList';
 import { EditorTool } from '../editor/EditorLevel';
 import { Editor, EDITOR_EVENTS, PALETTE } from './Editor';
 
@@ -37,7 +36,6 @@ export class EditorHud extends Scene
     private paletteButtons = new Map<EditorTool, GameObjects.Rectangle>();
     private messageText: GameObjects.Text;
     private messageTimer: Time.TimerEvent | null = null;
-    private popup: GameObjects.GameObject[] = [];
 
     constructor ()
     {
@@ -48,19 +46,17 @@ export class EditorHud extends Scene
     {
         this.editor = this.scene.get('Editor') as Editor;
         this.paletteButtons.clear();
-        this.popup = [];
         this.messageTimer = null;
 
         const { width, height } = this.scale;
 
-        //  Top bar: Menu, Undo and Redo on the left; Open, Import, Export and Play on the right
+        //  Top bar: Menu, Undo and Redo on the left; Import, Export and Play on the right
         this.add.rectangle(0, 0, width, 72, BAR_COLOR, 0.92).setOrigin(0).setInteractive();
         const top = 36;
         const size = { height: 52 };
         addButton(this, 80, top, 'Menu', () => this.editor.toMainMenu(), { ...size, width: 130 });
         addIconButton(this, 200, top, [{ key: 'icon-undo' }], () => this.editor.undo(), { ...size, width: 72 });
         addIconButton(this, 286, top, [{ key: 'icon-redo' }], () => this.editor.redo(), { ...size, width: 72 });
-        addButton(this, 538, top, 'Open', () => this.openPopup(), { ...size, width: 116 });
         addButton(this, 674, top, 'Import', () => this.editor.importLevel(), { ...size, width: 140 });
         addButton(this, 822, top, 'Export', () => this.editor.exportLevel(), { ...size, width: 140 });
         addButton(this, 958, top, 'Play', () => this.editor.play(), { ...size, width: 116 });
@@ -115,48 +111,5 @@ export class EditorHud extends Scene
         this.messageText.setText(text).setVisible(true);
         this.messageTimer?.remove();
         this.messageTimer = this.time.delayedCall(MESSAGE_MS, () => this.messageText.setVisible(false));
-    }
-
-    //  A list of LEVELS to open, plus Cancel. Covers the whole screen so clicks can't reach the
-    //  canvas while it's open.
-    private openPopup ()
-    {
-        if (this.popup.length > 0)
-        {
-            return;
-        }
-        const { width, height } = this.scale;
-        const cx = width / 2;
-        const rowStep = 64;
-        const panelHeight = 140 + (LEVELS.length + 1) * rowStep;
-        const panelTop = Math.max(16, height / 2 - panelHeight / 2);
-
-        this.popup.push(
-            this.add.rectangle(0, 0, width, height, 0x000000, 0.5).setOrigin(0).setInteractive(),
-            this.add.rectangle(cx, panelTop, 420, panelHeight, BAR_COLOR).setOrigin(0.5, 0)
-                .setStrokeStyle(4, 0x9fd0f0).setInteractive(),
-            this.add.text(cx, panelTop + 48, 'Open Level', { ...TEXT_STYLE, fontSize: 36 }).setOrigin(0.5)
-        );
-
-        LEVELS.forEach((level, i) =>
-        {
-            this.popup.push(addButton(this, cx, panelTop + 120 + i * rowStep, `${level.pack.name} ${level.number}`, () =>
-            {
-                this.closePopup();
-                this.editor.openLevel(i);
-            }, { width: 360, height: 52 }));
-        });
-
-        this.popup.push(addButton(this, cx, panelTop + 120 + LEVELS.length * rowStep + 8, 'Cancel',
-            () => this.closePopup(), { width: 200, height: 52 }));
-    }
-
-    private closePopup ()
-    {
-        for (const object of this.popup)
-        {
-            object.destroy();
-        }
-        this.popup = [];
     }
 }
