@@ -19,7 +19,17 @@ interface EditorState
     //  Snapshots from before each edit (undo) and before each undo (redo), oldest first
     undo: EditorSnapshot[];
     redo: EditorSnapshot[];
+    //  File name suggested when exporting: the opened or imported file's, or the last one saved to
+    fileName: string;
 }
+
+const DEFAULT_FILE_NAME = 'level.txt';
+
+//  The File System Access API's save dialog (Chrome and Edge); not in TypeScript's DOM types yet
+type SaveFilePicker = (options: {
+    suggestedName?: string;
+    types?: { description: string, accept: Record<string, string[]> }[];
+}) => Promise<{ name: string, createWritable (): Promise<{ write (data: string): Promise<void>, close (): Promise<void> }> }>;
 
 const STATE_KEY = 'editorState';
 const MIN_ZOOM = 0.25;
@@ -89,6 +99,7 @@ export class Editor extends Scene
 
         const saved = this.registry.get(STATE_KEY) as EditorState | undefined;
         this.state = saved ?? this.initialState(new EditorLevel(), 'wall');
+        this.state.fileName ??= DEFAULT_FILE_NAME;
         this.state.undo ??= [];
         this.state.redo ??= [];
         camera.setScroll(this.state.scrollX, this.state.scrollY).setZoom(this.state.zoom);
@@ -164,7 +175,8 @@ export class Editor extends Scene
     //  Replaces the map with a level from LEVELS, centred in view
     openLevel (index: number)
     {
-        this.loadLevel(EditorLevel.fromLevelData(parseLevelDraft(this.cache.text.get(LEVELS[index].key))));
+        const { key, file } = LEVELS[index];
+        this.loadLevel(EditorLevel.fromLevelData(parseLevelDraft(this.cache.text.get(key))), baseName(file));
     }
 
     //  Lets the user pick a .txt level file to replace the map with
@@ -212,7 +224,7 @@ export class Editor extends Scene
                 this.message(`${file.name} is larger than ${MAX_IMPORT_SIZE}x${MAX_IMPORT_SIZE} tiles.`);
                 return;
             }
-            this.loadLevel(EditorLevel.fromLevelData(data));
+            this.loadLevel(EditorLevel.fromLevelData(data), file.name);
         }
         catch (error)
         {
@@ -225,20 +237,21 @@ export class Editor extends Scene
     }
 
     //  Replaces the map, centred in view, with a fresh undo history
-    private loadLevel (level: EditorLevel)
+    private loadLevel (level: EditorLevel, fileName: string)
     {
         if (!this.scene.isActive())
         {
             return;
         }
-        this.registry.set(STATE_KEY, this.initialState(level, this.state.tool));
+        this.registry.set(STATE_KEY, { ...this.initialState(level, this.state.tool), fileName });
         //  Skip the shutdown save, which would overwrite the new state
         this.skipSave = true;
         this.scene.restart();
     }
 
-    //  Downloads the map as level.txt and copies it to the clipboard
-    exportLevel ()
+    //  Saves the map as a .txt level file, letting the user choose where and under what name
+    //  where the browser supports it (otherwise it downloads)
+    async exportLevel ()
     {
         const text = this.state.level.toText();
         if (!text)
@@ -247,17 +260,37 @@ export class Editor extends Scene
             return;
         }
 
-        const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'level.txt';
-        link.click();
-        URL.revokeObjectURL(url);
-
-        navigator.clipboard?.writeText(text).then(
-            () => this.message('Downloaded level.txt and copied it to the clipboard.'),
-            () => this.message('Downloaded level.txt (couldn\'t copy to the clipboard).')
-        ) ?? this.message('Downloaded level.txt.');
+        const picker = (window as { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker;
+        if (picker)
+        {
+            try
+            {
+                const handle = await picker.call(window, {
+                    suggestedName: this.state.fileName,
+                    types: [{ description: 'Level', accept: { 'text/plain': ['.txt'] } }]
+                });
+                const writable = await handle.createWritable();
+                await writable.write(text);
+                await writable.close();
+                this.state.fileName = handle.name;
+                this.message(`Saved ${handle.name}.`);
+            }
+            catch (error)
+            {
+                //  Closing the dialog without saving isn't an error
+                if (error instanceof DOMException && error.name === 'AbortError')
+                {
+                    return;
+                }
+                this.message(`Couldn't save the level: ${error instanceof Error ? error.message : error}`);
+                return;
+            }
+        }
+        else
+        {
+            downloadText(text, this.state.fileName);
+            this.message(`Downloaded ${this.state.fileName}.`);
+        }
     }
 
     toMainMenu ()
@@ -277,7 +310,8 @@ export class Editor extends Scene
             scrollY: centre - camera.height / 2,
             zoom: 1,
             undo: [],
-            redo: []
+            redo: [],
+            fileName: DEFAULT_FILE_NAME
         };
     }
 
@@ -563,4 +597,21 @@ function lineCells (a: GridPoint, b: GridPoint): GridPoint[]
         cells.push({ x, y });
     }
     return cells;
+}
+
+//  A path's last segment, e.g. 'levels/demo.txt' -> 'demo.txt'
+function baseName (path: string): string
+{
+    return path.slice(path.lastIndexOf('/') + 1);
+}
+
+//  Downloads text as a file, for browsers without a save dialog (it goes to the downloads folder)
+function downloadText (text: string, fileName: string): void
+{
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
 }
