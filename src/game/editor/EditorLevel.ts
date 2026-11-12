@@ -8,7 +8,7 @@ export type EditorTool = 'wall' | 'snow' | 'ice' | 'exit' | 'player' | 'boulder'
 export const EDITOR_SIZE = 64;
 const MARGIN = 16;
 
-const key = (x: number, y: number) => `${x},${y}`;
+export const cellKey = (x: number, y: number) => `${x},${y}`;
 const isGround = (tile: number) => tile === TileIndex.Floor || tile === TileIndex.Ice;
 
 //  The level being edited: a fixed-size square canvas of tiles plus the player, boulders and
@@ -45,7 +45,7 @@ export class EditorLevel
         level.goal = { x: data.goal.x + ox, y: data.goal.y + oy };
         for (const b of data.boulders)
         {
-            level.boulders.add(key(b.x + ox, b.y + oy));
+            level.boulders.add(cellKey(b.x + ox, b.y + oy));
         }
         return level;
     }
@@ -62,7 +62,7 @@ export class EditorLevel
 
     hasBoulderAt (x: number, y: number): boolean
     {
-        return this.boulders.has(key(x, y));
+        return this.boulders.has(cellKey(x, y));
     }
 
     //  Applies a tool to the cell at (x, y). Returns the cells whose contents changed (the
@@ -107,7 +107,7 @@ export class EditorLevel
 
             case 'player':
                 this.makeGround(x, y);
-                this.boulders.delete(key(x, y));
+                this.boulders.delete(cellKey(x, y));
                 this.player = { x, y };
                 break;
 
@@ -117,7 +117,7 @@ export class EditorLevel
                 {
                     this.player = null;
                 }
-                this.boulders.add(key(x, y));
+                this.boulders.add(cellKey(x, y));
                 break;
 
             case 'erase':
@@ -236,7 +236,7 @@ export class EditorLevel
         {
             this.player = null;
         }
-        this.boulders.delete(key(x, y));
+        this.boulders.delete(cellKey(x, y));
     }
 
     //  A string describing everything in a cell, for change detection

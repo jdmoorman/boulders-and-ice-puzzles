@@ -1,5 +1,5 @@
 import { Scene, Scenes, GameObjects, Input, Tilemaps } from 'phaser';
-import { EditorLevel, EditorTool } from '../editor/EditorLevel';
+import { cellKey, EditorLevel, EditorTool } from '../editor/EditorLevel';
 import { parseLevel, GridPoint } from '../levels/LevelParser';
 import { TILE_SIZE, TileIndex } from '../levels/Tiles';
 import { LEVELS } from '../levels/levelList';
@@ -43,8 +43,6 @@ export const EDITOR_EVENTS = {
     TOOL: 'editor-tool',
     MESSAGE: 'editor-message'
 } as const;
-
-const cellKey = (x: number, y: number) => `${x},${y}`;
 
 //  Level editor: the canvas, mouse painting, panning and zooming. The palette and buttons are
 //  in the EditorHud scene, launched on top so they aren't affected by the camera.
