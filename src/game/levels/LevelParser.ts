@@ -27,10 +27,28 @@ export class LevelParseError extends Error
     }
 }
 
+//  A parsed level that may not have a player yet, as the editor allows
+export interface LevelDraft extends Omit<LevelData, 'player'>
+{
+    player: GridPoint | null;
+}
+
 //  Parses an ASCII level. Lines starting with ';' are comments.
 //  Rows may differ in length: the map is as wide as the longest row, and
 //  shorter rows are padded on the right with void.
 export function parseLevel (text: string): LevelData
+{
+    const draft = parseLevelDraft(text);
+    const { player } = draft;
+    if (!player)
+    {
+        throw new LevelParseError("Level has no player start ('p' or 'P')");
+    }
+    return { ...draft, player };
+}
+
+//  Like parseLevel, but a level without a player is allowed.
+export function parseLevelDraft (text: string): LevelDraft
 {
     const rows = text
         .replace(/\r\n?/g, '\n')
@@ -99,11 +117,6 @@ export function parseLevel (text: string): LevelData
 
         tiles.push(row);
     });
-
-    if (!player)
-    {
-        throw new LevelParseError("Level has no player start ('p' or 'P')");
-    }
 
     return { width, height, tiles, player, goal, boulders };
 }

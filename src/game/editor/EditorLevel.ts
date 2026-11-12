@@ -1,4 +1,4 @@
-import { GridPoint, LevelData } from '../levels/LevelParser';
+import { GridPoint, LevelDraft } from '../levels/LevelParser';
 import { TileIndex } from '../levels/Tiles';
 
 export type EditorTool = 'wall' | 'snow' | 'ice' | 'exit' | 'player' | 'boulder' | 'erase';
@@ -41,7 +41,7 @@ export class EditorLevel
     }
 
     //  Builds an editor level from a parsed level, centred on the canvas.
-    static fromLevelData (data: LevelData): EditorLevel
+    static fromLevelData (data: LevelDraft): EditorLevel
     {
         const size = Math.max(EDITOR_SIZE, Math.max(data.width, data.height) + MARGIN * 2);
         const level = new EditorLevel(size);
@@ -52,7 +52,7 @@ export class EditorLevel
         {
             level.tiles[y + oy][x + ox] = tile;
         }));
-        level.player = { x: data.player.x + ox, y: data.player.y + oy };
+        level.player = data.player && { x: data.player.x + ox, y: data.player.y + oy };
         level.goal = data.goal && { x: data.goal.x + ox, y: data.goal.y + oy };
         for (const b of data.boulders)
         {

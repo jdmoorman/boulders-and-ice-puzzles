@@ -1,6 +1,6 @@
 import { Scene, Scenes, GameObjects, Input, Tilemaps } from 'phaser';
 import { cellKey, EditorLevel, EditorSnapshot, EditorTool } from '../editor/EditorLevel';
-import { parseLevel, GridPoint } from '../levels/LevelParser';
+import { parseLevelDraft, GridPoint, LevelParseError } from '../levels/LevelParser';
 import { TILE_SIZE, TileIndex } from '../levels/Tiles';
 import { LEVELS } from '../levels/levelList';
 import { AUTOTILE_SETS, AutotileSet, displayTileIndex, isTallSet } from '../levels/autotile';
@@ -25,6 +25,9 @@ const STATE_KEY = 'editorState';
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2;
 const HISTORY_LIMIT = 1000;
+//  Limits on imported files, so a stray large file can't build a huge canvas
+const MAX_IMPORT_BYTES = 256 * 1024;
+const MAX_IMPORT_SIZE = 256;
 //  Above every y-sorted object on the canvas
 const OVERLAY_DEPTH = 1e7;
 
@@ -161,7 +164,73 @@ export class Editor extends Scene
     //  Replaces the map with a level from LEVELS, centred in view
     openLevel (index: number)
     {
-        const level = EditorLevel.fromLevelData(parseLevel(this.cache.text.get(LEVELS[index].key)));
+        this.loadLevel(EditorLevel.fromLevelData(parseLevelDraft(this.cache.text.get(LEVELS[index].key))));
+    }
+
+    //  Lets the user pick a .txt level file to replace the map with
+    importLevel ()
+    {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.txt,text/plain';
+        input.addEventListener('change', () =>
+        {
+            const file = input.files?.[0];
+            if (file)
+            {
+                this.importFile(file);
+            }
+        });
+        input.click();
+    }
+
+    //  Replaces the map with a level file, or reports why it can't be read
+    private async importFile (file: File)
+    {
+        if (file.size > MAX_IMPORT_BYTES)
+        {
+            this.message(`${file.name} is too large to be a level.`);
+            return;
+        }
+
+        let text: string;
+        try
+        {
+            text = await file.text();
+        }
+        catch
+        {
+            this.message(`Couldn't read ${file.name}.`);
+            return;
+        }
+
+        try
+        {
+            const data = parseLevelDraft(text);
+            if (data.width > MAX_IMPORT_SIZE || data.height > MAX_IMPORT_SIZE)
+            {
+                this.message(`${file.name} is larger than ${MAX_IMPORT_SIZE}x${MAX_IMPORT_SIZE} tiles.`);
+                return;
+            }
+            this.loadLevel(EditorLevel.fromLevelData(data));
+        }
+        catch (error)
+        {
+            if (!(error instanceof LevelParseError))
+            {
+                throw error;
+            }
+            this.message(`Couldn't import ${file.name}: ${error.message}.`);
+        }
+    }
+
+    //  Replaces the map, centred in view, with a fresh undo history
+    private loadLevel (level: EditorLevel)
+    {
+        if (!this.scene.isActive())
+        {
+            return;
+        }
         this.registry.set(STATE_KEY, this.initialState(level, this.state.tool));
         //  Skip the shutdown save, which would overwrite the new state
         this.skipSave = true;
