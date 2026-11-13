@@ -1,7 +1,10 @@
 import { GridPoint, LevelData, LevelDraft } from '../levels/LevelParser';
 import { TileIndex } from '../levels/Tiles';
 
-export type EditorTool = 'wall' | 'snow' | 'ice' | 'exit' | 'player' | 'boulder' | 'plate' | 'door' | 'erase';
+//  'erase' clears a cell completely; 'erase-entity' removes only what stands on it (the player, a
+//  boulder, plate, door or the exit), leaving the snow or ice
+export type EditorTool =
+    'wall' | 'snow' | 'ice' | 'exit' | 'player' | 'boulder' | 'plate' | 'door' | 'erase' | 'erase-entity';
 
 //  Default editing canvas size, in tiles. A level that doesn't fit with MARGIN tiles to spare
 //  gets a bigger canvas.
@@ -106,6 +109,13 @@ export class EditorLevel
     hasDoorAt (x: number, y: number): boolean
     {
         return this.doors.has(cellKey(x, y));
+    }
+
+    //  Whether anything stands on the cell: the player, a boulder, plate, door or the exit
+    hasEntityAt (x: number, y: number): boolean
+    {
+        return this.isPlayerAt(x, y) || this.isGoalAt(x, y) || this.hasBoulderAt(x, y)
+            || this.hasPlateAt(x, y) || this.hasDoorAt(x, y);
     }
 
     snapshot (): EditorSnapshot
@@ -227,6 +237,10 @@ export class EditorLevel
 
             case 'erase':
                 this.setTile(x, y, TileIndex.Void);
+                break;
+
+            case 'erase-entity':
+                this.clearEntity(x, y);
                 break;
         }
 

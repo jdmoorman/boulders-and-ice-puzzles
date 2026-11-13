@@ -43,7 +43,8 @@ const PALETTE_ICONS: Readonly<Record<EditorTool, readonly ButtonIcon[]>> = {
     boulder: [{ key: 'boulder' }],
     plate: [SNOW_ICON, { key: 'plate-press', frame: PLATE_UP_FRAME }],
     door: [SNOW_ICON, DOOR_CLOSED],
-    erase: []
+    erase: [],
+    'erase-entity': []
 };
 
 //  The level editor's palette, buttons and messages. Runs on top of the Editor scene with its

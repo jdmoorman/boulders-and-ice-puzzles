@@ -49,7 +49,7 @@ export const PALETTE: readonly EditorTool[] = ['wall', 'snow', 'ice', 'exit', 'p
 
 //  Tools that paint every cell along a drag. The others (exit, player) are placed
 //  once, on the cell where the mouse was pressed.
-const DRAG_TOOLS: ReadonlySet<EditorTool> = new Set<EditorTool>(['wall', 'snow', 'ice', 'boulder', 'plate', 'door', 'erase']);
+const DRAG_TOOLS: ReadonlySet<EditorTool> = new Set<EditorTool>(['wall', 'snow', 'ice', 'boulder', 'plate', 'door', 'erase', 'erase-entity']);
 
 //  Events emitted on this scene's event emitter for the HUD
 export const EDITOR_EVENTS = {
@@ -671,13 +671,17 @@ export class Editor extends Scene
             {
                 return;
             }
-            const tool: EditorTool | null = pointer.rightButtonDown() ? 'erase'
+            const cell = this.cellAt(pointer);
+            //  Right-click erases. Starting on something standing on a tile, the stroke removes
+            //  only such things and leaves the tiles; starting anywhere else, it clears whole cells.
+            const level = this.state.level;
+            const eraseTool = level.inBounds(cell.x, cell.y) && level.hasEntityAt(cell.x, cell.y) ? 'erase-entity' : 'erase';
+            const tool: EditorTool | null = pointer.rightButtonDown() ? eraseTool
                 : pointer.leftButtonDown() ? this.state.tool : null;
             if (!tool)
             {
                 return;
             }
-            const cell = this.cellAt(pointer);
             this.stroke = DRAG_TOOLS.has(tool) ? { tool, last: cell } : null;
             this.pending = this.state.level.snapshot();
             this.applyAt(tool, cell.x, cell.y);
