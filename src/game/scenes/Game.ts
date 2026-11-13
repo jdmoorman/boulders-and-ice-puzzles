@@ -23,6 +23,13 @@ export interface GameData
     resume?: boolean;
 }
 
+//  Whether Ctrl, Cmd, Alt or Shift was held for a key press. R with one of those is most likely
+//  the browser's refresh shortcut rather than a restart.
+export function withModifier (event: KeyboardEvent): boolean
+{
+    return event.ctrlKey || event.metaKey || event.altKey || event.shiftKey;
+}
+
 //  Stops Game and starts another scene, for overlays (pause menu, level complete) leaving play
 export function leaveGame (scene: Scene, target: 'Editor' | 'MainMenu'): void
 {
@@ -61,6 +68,12 @@ export class Game extends Scene
         this.resume = data.resume ?? false;
     }
 
+    //  Data that starts this same level again
+    private restartData (): GameData
+    {
+        return this.levelText ? { levelText: this.levelText } : { levelIndex: this.levelIndex };
+    }
+
     create ()
     {
         this.cameras.main.setBackgroundColor(0x141a22);
@@ -94,6 +107,17 @@ export class Game extends Scene
                 right: [keyboard.addKey(K.RIGHT), keyboard.addKey(K.D)]
             };
 
+            //  R restarts the level, but only when pressed by itself: with Ctrl, Cmd, Alt or Shift
+            //  held it's most likely the browser's refresh shortcut, and with a direction key held
+            //  it's probably a slip. Disabled once the level is complete.
+            keyboard.on('keydown-R', (event: KeyboardEvent) =>
+            {
+                const otherKeyHeld = withModifier(event) || this.heldDirection() !== null;
+                if (!otherKeyHeld && !this.levelComplete)
+                {
+                    this.scene.restart(this.restartData());
+                }
+            });
             //  While playtesting, Esc goes straight back to the editor
             keyboard.on('keydown-ESC', () => this.levelText ? this.scene.start('Editor') : this.pauseGame());
             keyboard.on('keydown-P', () => this.pauseGame());

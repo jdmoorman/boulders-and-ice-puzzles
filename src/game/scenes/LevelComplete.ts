@@ -1,6 +1,6 @@
 import { Scene } from 'phaser';
 import { addButton, TEXT_STYLE } from '../ui/Button';
-import { GameData, leaveGame } from './Game';
+import { GameData, leaveGame, withModifier } from './Game';
 
 export interface LevelCompleteData
 {
@@ -63,6 +63,14 @@ export class LevelComplete extends Scene
         const keyboard = this.input.keyboard;
         if (keyboard)
         {
+            //  R replays the level, unless a modifier is held (see withModifier)
+            keyboard.on('keydown-R', (event: KeyboardEvent) =>
+            {
+                if (!withModifier(event))
+                {
+                    this.replay();
+                }
+            });
             keyboard.once('keydown-ENTER', () =>
                 this.levelText ? this.toEditor() : this.isLast ? this.toMenu() : this.next());
         }
