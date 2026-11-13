@@ -37,7 +37,7 @@ const config: Phaser.Types.Core.GameConfig = {
     width: 1024,
     height: 768,
     parent: 'game-container',
-    backgroundColor: '#028af8',
+    backgroundColor: '#141a22',
     //  Every camera snaps to whole screen pixels (see the willRoundVertices override above)
     roundPixels: true,
     scene: [

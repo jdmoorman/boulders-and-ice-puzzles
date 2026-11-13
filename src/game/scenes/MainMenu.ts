@@ -1,12 +1,9 @@
-import { Scene, GameObjects } from 'phaser';
-import { addButton } from '../ui/Button';
+import { Scene } from 'phaser';
+import { addButton, TEXT_STYLE } from '../ui/Button';
 import { firstUncompletedLevel } from '../progress';
 
 export class MainMenu extends Scene
 {
-    background: GameObjects.Image;
-    logo: GameObjects.Image;
-
     constructor ()
     {
         super('MainMenu');
@@ -14,14 +11,13 @@ export class MainMenu extends Scene
 
     create ()
     {
-        this.background = this.add.image(512, 384, 'background');
-
-        this.logo = this.add.image(512, 300, 'logo');
+        //  Same title style and position as Level Select
+        this.add.text(512, 90, 'Main Menu', { ...TEXT_STYLE, fontSize: 48, strokeThickness: 8 }).setOrigin(0.5);
 
         //  Play picks up at the earliest level not yet completed. Pass levelIndex explicitly:
         //  Phaser reuses a scene's previous start data otherwise
-        addButton(this, 512, 470, 'Play', () => this.scene.start('Game', { levelIndex: firstUncompletedLevel() }));
-        addButton(this, 512, 554, 'Levels', () => this.scene.start('LevelSelect'));
-        addButton(this, 512, 638, 'Editor', () => this.scene.start('Editor'));
+        addButton(this, 512, 220, 'Play', () => this.scene.start('Game', { levelIndex: firstUncompletedLevel() }));
+        addButton(this, 512, 304, 'Levels', () => this.scene.start('LevelSelect'));
+        addButton(this, 512, 388, 'Editor', () => this.scene.start('Editor'));
     }
 }

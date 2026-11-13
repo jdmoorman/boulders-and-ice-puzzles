@@ -35,8 +35,6 @@ export class LevelSelect extends Scene
         const camera = this.cameras.main;
         camera.setScroll(0, 0);
 
-        this.add.image(cx, height / 2, 'background').setScrollFactor(0);
-
         this.add.text(cx, 90, 'Select Level', { ...TEXT_STYLE, fontSize: 48, strokeThickness: 8 })
             .setOrigin(0.5);
 
