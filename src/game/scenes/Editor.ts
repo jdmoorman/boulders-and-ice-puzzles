@@ -520,9 +520,10 @@ export class Editor extends Scene
 
         for (const tile of tiles)
         {
-            const { x, y } = tileCenter(tile);
-            this.analysisOverlay.add(this.add.text(x, y, `${tile.moves.length}`, { ...TEXT_STYLE, fontSize: 22, strokeThickness: 5 })
-                .setOrigin(0.5));
+            //  In the tile's top-left corner, clear of the route lines through its centre
+            const x = tile.x * TILE_SIZE + 6;
+            const y = tile.y * TILE_SIZE + 4;
+            this.analysisOverlay.add(this.add.text(x, y, `${tile.cost}`, { ...TEXT_STYLE, fontSize: 16, strokeThickness: 4 }));
         }
 
         //  Once the search is known to be complete, dim the ground it never reached

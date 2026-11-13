@@ -3,14 +3,18 @@ import type { GridPoint, LevelData } from '../levels/LevelParser';
 import { TileIndex } from '../levels/Tiles';
 import { AnalysisMessage, DIRECTION_LETTERS, FoundTile, MAX_STATES } from './analysisShared';
 
-//  Web Worker that finds the shortest move sequence from the player's start to every tile it
-//  can reach. Receives a LevelData and posts AnalysisMessages (see analysisShared.ts).
+//  Web Worker that finds the fewest moves from the player's start to every tile it can reach.
+//  Receives a LevelData and posts AnalysisMessages (see analysisShared.ts).
 //
-//  Breadth-first search over positions: the player's cell plus the cells of all boulders
-//  (boulders are interchangeable, so their cells are kept sorted). Moves follow the game's own
-//  rules via resolveMove. A tile counts as reached by the first move that takes the player onto
-//  or through it, so ice the player slides across counts too (an exit placed there would stop the
-//  slide). Reaching the exit is a final move that isn't explored further.
+//  Searches positions: the player's cell plus the cells of all boulders (boulders are
+//  interchangeable, so their cells are kept sorted). Moves follow the game's own rules via
+//  resolveMove. A tile counts as reached by the first move that takes the player onto or through
+//  it, so ice the player slides across counts too (an exit placed there would stop the slide).
+//  Reaching the exit is a final move that isn't explored further.
+//
+//  Walking around on snow is trivial, so steps from snow to snow are free; every other move costs
+//  1. The search is a 0-1 breadth-first search: positions are explored in order of cost, one cost
+//  at a time, with free steps joining the current cost and paid moves the next.
 
 const DIRECTIONS: readonly Direction[] = ['up', 'down', 'left', 'right'];
 const PROGRESS_MS = 100;
@@ -18,24 +22,37 @@ const CHECK_EVERY = 1000;
 
 addEventListener('message', (event: MessageEvent<LevelData>) => analyze(event.data));
 
+//  The best way found so far to reach a tile: from a position, plus the final move when the tile
+//  is passed through (or is the exit) rather than stood on
+interface Candidate
+{
+    cost: number;
+    from: number;
+    last?: Direction;
+}
+
 function analyze (level: LevelData): void
 {
-    const { width } = level;
+    const { width, tiles } = level;
     const cellOf = (p: GridPoint) => p.y * width + p.x;
     const pointOf = (i: number): GridPoint => ({ x: i % width, y: Math.floor(i / width) });
+    const isFloor = (p: GridPoint) => tiles[p.y][p.x] === TileIndex.Floor;
     const possible = possibleTiles(level);
 
     //  Per position: the player's cell, its boulder cells (flat, boulderCount per position),
-    //  the position it was reached from, the move taken, and its number of moves from the start
+    //  the position it was reached from, the move taken, its cost from the start, and whether its
+    //  cost is final
     const boulderCount = level.boulders.length;
     const players: number[] = [];
     const boulders: number[] = [];
     const parents: number[] = [];
     const moves: number[] = [];
-    const depths: number[] = [];
-    const seen = new Set<string>();
+    const costs: number[] = [];
+    const settled: boolean[] = [];
+    const ids = new Map<string, number>();
 
-    //  Tile cell -> the moves to reach it
+    //  Tiles whose cost may still drop, and tiles whose cost is final (cell -> moves)
+    const candidates = new Map<number, Candidate>();
     const found = new Map<number, string>();
     let pending: FoundTile[] = [];
 
@@ -49,98 +66,181 @@ function analyze (level: LevelData): void
         return text;
     };
 
-    const reach = (cell: number, id: number, last?: Direction) =>
+    const reach = (cell: number, cost: number, from: number, last?: Direction) =>
     {
-        if (!found.has(cell))
-        {
-            const text = movesTo(id, last);
-            found.set(cell, text);
-            pending.push({ ...pointOf(cell), moves: text });
-        }
-    };
-
-    const addState = (player: number, cells: number[], parent: number, move: number, depth: number) =>
-    {
-        const key = stateKey(player, cells);
-        if (seen.has(key))
+        if (found.has(cell))
         {
             return;
         }
-        seen.add(key);
-        const id = players.length;
-        players.push(player);
-        for (const c of cells)
+        const best = candidates.get(cell);
+        if (!best || cost < best.cost)
         {
-            boulders.push(c);
+            candidates.set(cell, { cost, from, last });
         }
-        parents.push(parent);
-        moves.push(move);
-        depths.push(depth);
-        reach(player, id);
     };
 
-    const post = (done: boolean, complete: boolean, depth: number) =>
+    const settle = (cell: number, c: Candidate) =>
+    {
+        const text = movesTo(c.from, c.last);
+        found.set(cell, text);
+        pending.push({ ...pointOf(cell), moves: text, cost: c.cost });
+        candidates.delete(cell);
+    };
+
+    //  Every position explored from now on costs at least `cost`, so tiles reached for that
+    //  much or less can't get any cheaper
+    const finalize = (cost: number) =>
+    {
+        for (const [cell, c] of candidates)
+        {
+            if (c.cost <= cost)
+            {
+                settle(cell, c);
+            }
+        }
+    };
+
+    //  Positions to explore at the current cost, and at the next
+    let current: number[] = [];
+    let next: number[] = [];
+
+    const addState = (player: number, cells: number[], parent: number, move: number, cost: number) =>
+    {
+        const key = stateKey(player, cells);
+        let id = ids.get(key);
+        if (id === undefined)
+        {
+            id = players.length;
+            ids.set(key, id);
+            players.push(player);
+            for (const c of cells)
+            {
+                boulders.push(c);
+            }
+            parents.push(parent);
+            moves.push(move);
+            costs.push(cost);
+            settled.push(false);
+        }
+        else if (settled[id] || cost >= costs[id])
+        {
+            return;
+        }
+        else
+        {
+            parents[id] = parent;
+            moves[id] = move;
+            costs[id] = cost;
+        }
+        (cost === costOf ? current : next).push(id);
+    };
+
+    const post = (done: boolean, complete: boolean) =>
     {
         const message: AnalysisMessage = {
-            states: players.length, depth, found: found.size, possible: possible.size,
+            states: players.length, depth: costOf, found: found.size, possible: possible.size,
             tiles: pending, done, complete
         };
         postMessage(message);
         pending = [];
     };
 
+    //  The cost being explored
+    let costOf = 0;
     addState(cellOf(level.player), level.boulders.map(cellOf).sort((a, b) => a - b), -1, 0, 0);
 
     //  One LevelData reused for every position, with its boulders swapped in
     const data: LevelData = { ...level, boulders: [] };
     let lastPost = performance.now();
     let complete = true;
+    let expanded = 0;
 
-    for (let s = 0; s < players.length && found.size < possible.size; s++)
+    search:
+    while (current.length > 0)
     {
-        if (players.length >= MAX_STATES)
+        //  Tiles slid through for this cost while exploring the cost before
+        finalize(costOf);
+        for (let i = 0; i < current.length; i++)
         {
-            complete = false;
-            break;
-        }
-        if (s % CHECK_EVERY === 0 && performance.now() - lastPost >= PROGRESS_MS)
-        {
-            post(false, false, depths[s]);
-            lastPost = performance.now();
-        }
-
-        const player = pointOf(players[s]);
-        const cells = boulders.slice(s * boulderCount, (s + 1) * boulderCount);
-        data.boulders = cells.map(pointOf);
-
-        DIRECTIONS.forEach((dir, d) =>
-        {
-            const result = resolveMove(data, player, dir);
-            switch (result.kind)
+            const s = current[i];
+            if (settled[s])
             {
-                case 'walk':
-                    //  Tiles slid through on the way; the end tile is reached by its new position
-                    result.path.slice(0, -1).forEach(p => reach(cellOf(p), s, dir));
-                    addState(cellOf(result.path[result.path.length - 1]), cells, s, d, depths[s] + 1);
-                    break;
-
-                case 'push':
-                {
-                    const moved = cells.slice();
-                    moved[result.boulderIndex] = cellOf(result.path[result.path.length - 1]);
-                    addState(players[s], moved.sort((a, b) => a - b), s, d, depths[s] + 1);
-                    break;
-                }
-
-                case 'exit':
-                    result.path.forEach(p => reach(cellOf(p), s, dir));
-                    reach(cellOf(result.exit), s, dir);
-                    break;
+                continue;
             }
-        });
+            settled[s] = true;
+            //  Nothing explored later is cheaper, so the player's tile is settled
+            if (!found.has(players[s]))
+            {
+                settle(players[s], { cost: costOf, from: s });
+            }
+            if (found.size >= possible.size)
+            {
+                break search;
+            }
+            if (players.length >= MAX_STATES)
+            {
+                complete = false;
+                break search;
+            }
+            if (++expanded % CHECK_EVERY === 0 && performance.now() - lastPost >= PROGRESS_MS)
+            {
+                post(false, false);
+                lastPost = performance.now();
+            }
+
+            const player = pointOf(players[s]);
+            const cells = boulders.slice(s * boulderCount, (s + 1) * boulderCount);
+            data.boulders = cells.map(pointOf);
+            const onFloor = isFloor(player);
+
+            DIRECTIONS.forEach((dir, d) =>
+            {
+                const result = resolveMove(data, player, dir);
+                switch (result.kind)
+                {
+                    case 'walk':
+                    {
+                        const end = result.path[result.path.length - 1];
+                        if (onFloor && result.path.length === 1 && isFloor(end))
+                        {
+                            addState(cellOf(end), cells, s, d, costOf);
+                            break;
+                        }
+                        //  Tiles slid through on the way; the end tile is reached by its new position
+                        result.path.slice(0, -1).forEach(p => reach(cellOf(p), costOf + 1, s, dir));
+                        addState(cellOf(end), cells, s, d, costOf + 1);
+                        break;
+                    }
+
+                    case 'push':
+                    {
+                        const moved = cells.slice();
+                        moved[result.boulderIndex] = cellOf(result.path[result.path.length - 1]);
+                        addState(players[s], moved.sort((a, b) => a - b), s, d, costOf + 1);
+                        break;
+                    }
+
+                    case 'exit':
+                    {
+                        //  Stepping straight off snow into the exit is free, like any snow step
+                        const fromFloor = onFloor && result.path.length === 0;
+                        result.path.forEach(p => reach(cellOf(p), costOf + 1, s, dir));
+                        reach(cellOf(result.exit), fromFloor ? costOf : costOf + 1, s, dir);
+                        break;
+                    }
+                }
+            });
+        }
+
+        //  Exits reached for free at this cost can't get cheaper either
+        finalize(costOf);
+        current = next;
+        next = [];
+        costOf++;
     }
 
-    post(true, complete, depths[depths.length - 1] ?? 0);
+    finalize(Infinity);
+    post(true, complete);
 }
 
 //  A string identifying a position; each cell index takes two UTF-16 code units

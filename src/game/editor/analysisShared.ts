@@ -10,12 +10,15 @@ export const MAX_STATES = 1_000_000;
 export const DIRECTION_LETTERS: Readonly<Record<Direction, string>> = { up: 'U', down: 'D', left: 'L', right: 'R' };
 export const LETTER_DIRECTIONS: Readonly<Record<string, Direction>> = { U: 'up', D: 'down', L: 'left', R: 'right' };
 
-//  A tile the search reached, with the shortest move sequence that gets the player there
+//  A tile the search reached, with the cheapest move sequence that gets the player there
 export interface FoundTile
 {
     x: number;
     y: number;
+    //  Every arrow-key press, one letter each
     moves: string;
+    //  The number of moves, not counting steps from snow to snow (walking on snow is free)
+    cost: number;
 }
 
 //  Sent by the worker as the search goes, and once more when it ends
@@ -23,7 +26,7 @@ export interface AnalysisMessage
 {
     //  Positions (player cell plus boulder cells) discovered so far
     states: number;
-    //  Moves from the start of the positions being explored
+    //  Cost (see FoundTile) of the positions being explored
     depth: number;
     //  Tiles reached so far, out of the tiles that could possibly be reached
     found: number;
