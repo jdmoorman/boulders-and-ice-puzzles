@@ -39,7 +39,7 @@ export class Preloader extends Scene
             frameHeight: PLAYER_FRAME_HEIGHT
         });
         this.load.image('boulder', 'rock.png');
-        this.load.image('wallAutotile', 'buch_autotile_wall.png');
+        this.load.image('wallAutotile', 'ranitayas_autotile_wall.png');
         this.load.image('snowAutotile', 'buch_autotile_snow.png');
         this.load.image('ice', 'buch_ice.png');
         loadPlates(this);
