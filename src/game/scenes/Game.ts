@@ -61,12 +61,6 @@ export class Game extends Scene
         this.resume = data.resume ?? false;
     }
 
-    //  Data that starts this same level again
-    private restartData (): GameData
-    {
-        return this.levelText ? { levelText: this.levelText } : { levelIndex: this.levelIndex };
-    }
-
     create ()
     {
         this.cameras.main.setBackgroundColor(0x141a22);
@@ -100,14 +94,6 @@ export class Game extends Scene
                 right: [keyboard.addKey(K.RIGHT), keyboard.addKey(K.D)]
             };
 
-            //  Disabled once the level is complete; the popup has its own R shortcut
-            keyboard.on('keydown-R', () =>
-            {
-                if (!this.levelComplete)
-                {
-                    this.scene.restart(this.restartData());
-                }
-            });
             //  While playtesting, Esc goes straight back to the editor
             keyboard.on('keydown-ESC', () => this.levelText ? this.scene.start('Editor') : this.pauseGame());
             keyboard.on('keydown-P', () => this.pauseGame());

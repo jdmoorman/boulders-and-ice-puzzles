@@ -63,7 +63,6 @@ export class LevelComplete extends Scene
         const keyboard = this.input.keyboard;
         if (keyboard)
         {
-            keyboard.once('keydown-R', () => this.replay());
             keyboard.once('keydown-ENTER', () =>
                 this.levelText ? this.toEditor() : this.isLast ? this.toMenu() : this.next());
         }
