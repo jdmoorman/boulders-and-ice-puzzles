@@ -34,13 +34,6 @@ export const AUTOTILE_SETS: readonly AutotileSet[] = [
         texture: 'wallAutotile',
         tiles: [TileIndex.Wall],
         joins: n => n === TileIndex.Wall
-    },
-    //  Snow covers floor. Walls count as snow, so the snow runs up to them without an edge; it
-    //  gets a shaded edge against ice and void.
-    {
-        texture: 'snowAutotile',
-        tiles: [TileIndex.Floor],
-        joins: n => n === TileIndex.Floor || n === TileIndex.Wall
     }
 ];
 

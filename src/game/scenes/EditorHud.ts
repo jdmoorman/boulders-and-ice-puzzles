@@ -1,7 +1,7 @@
 import { Scene, Scenes, GameObjects, Time } from 'phaser';
 import { addButton, addIconButton, ButtonIcon, TEXT_STYLE } from '../ui/Button';
 import { TileIndex } from '../levels/Tiles';
-import { AUTOTILE_SETS, ISOLATED_FRAME, SURROUNDED_FRAME, autotileBase } from '../levels/autotile';
+import { AUTOTILE_SETS, ISOLATED_FRAME } from '../levels/autotile';
 import { EditorTool } from '../editor/EditorLevel';
 import { Editor, EDITOR_EVENTS, PALETTE } from './Editor';
 import type { AnalysisProgress } from '../editor/EditorAnalysis';
@@ -30,8 +30,7 @@ const OPTIONS: readonly { key: keyof EditorSettings, label: string, description:
 
 const setOf = (tile: TileIndex) => AUTOTILE_SETS.findIndex(set => set.tiles.includes(tile));
 const WALL_ICON: ButtonIcon = { key: AUTOTILE_SETS[setOf(TileIndex.Wall)].texture, frame: ISOLATED_FRAME };
-//  Snow as if surrounded by snow, so it shows no edges
-const SNOW_ICON: ButtonIcon = { key: 'tiles', frame: autotileBase(setOf(TileIndex.Floor)) + SURROUNDED_FRAME };
+const SNOW_ICON: ButtonIcon = { key: 'tiles', frame: TileIndex.Floor };
 
 //  The picture on each palette button, drawn bottom layer first
 const PALETTE_ICONS: Readonly<Record<EditorTool, readonly ButtonIcon[]>> = {
