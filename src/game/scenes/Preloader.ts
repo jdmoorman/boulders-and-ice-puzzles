@@ -2,6 +2,7 @@ import { Scene, Textures } from 'phaser';
 import { createPlayerAnimations, PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT } from '../playerAnimations';
 import { generateTextures } from '../textures';
 import { LEVELS } from '../levels/levelList';
+import { createPlateAnimations, loadPlates } from '../plates';
 
 export class Preloader extends Scene
 {
@@ -40,6 +41,7 @@ export class Preloader extends Scene
         this.load.image('wallAutotile', 'buch_autotile_wall.png');
         this.load.image('snowAutotile', 'buch_autotile_snow.png');
         this.load.image('ice', 'buch_ice.png');
+        loadPlates(this);
 
         for (const level of LEVELS)
         {
@@ -52,11 +54,12 @@ export class Preloader extends Scene
         //  When all the assets have loaded, it's often worth creating global objects here that the rest of the game can use.
         //  For example, you can define global animations here, so we can use them in other scenes.
         //  Keep the scaled-up pixel art sharp (only these textures; others still smooth)
-        for (const key of ['player', 'boulder'])
+        for (const key of ['player', 'boulder', 'plate-press', 'plate-unpress'])
         {
             this.textures.get(key).setFilter(Textures.FilterMode.NEAREST);
         }
         createPlayerAnimations(this);
+        createPlateAnimations(this);
 
         generateTextures(this);
 

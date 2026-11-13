@@ -7,6 +7,7 @@ import { resolveMove, Direction } from '../movement/Movement';
 import { MOVEMENT } from '../settings';
 import { playerAnimKey, PlayerAnimKind } from '../playerAnimations';
 import { LevelCompleteData } from './LevelComplete';
+import { updatePlates } from '../plates';
 import { PauseMenuData } from './PauseMenu';
 
 const DIRECTIONS: readonly Direction[] = ['up', 'down', 'left', 'right'];
@@ -139,9 +140,11 @@ export class Game extends Scene
                 this.playPlayerAnim('idle');
                 const i = move.boulderIndex;
                 const end = move.path[move.path.length - 1];
+                this.updatePlates(this.level.data.boulders[i]);
                 this.tweenAlong(this.level.boulders[i], move.path, () =>
                 {
                     this.level.data.boulders[i] = { ...end };
+                    this.updatePlates();
                 });
                 break;
             }
@@ -195,11 +198,22 @@ export class Game extends Scene
         }
 
         const end = path[path.length - 1];
+        this.updatePlates(this.playerPos);
         this.tweenAlong(this.level.player, path, () =>
         {
             this.playerPos = { ...end };
+            this.updatePlates();
             then?.();
         });
+    }
+
+    //  Presses the pressure plates the player and boulders rest on and releases the others.
+    //  `leaving` is the position (this.playerPos or one of the boulders) of something that has
+    //  just started moving, so its plate releases as it leaves rather than once it stops.
+    private updatePlates (leaving?: GridPoint)
+    {
+        const occupied = [this.playerPos, ...this.level.data.boulders].filter(p => p !== leaving);
+        updatePlates(this.level.plates, occupied);
     }
 
     //  Tweens a sprite along a straight path: the first tile is a step, the rest are a slide.

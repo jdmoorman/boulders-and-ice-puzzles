@@ -14,8 +14,9 @@ export const PLAIN_TILE_COUNT = TileIndex.Wall + 1;
 
 export const TILE_SIZE = 64;
 
-//  Things that stand on a snow or ice tile. The goal is the exit.
-export type EntityKind = 'player' | 'boulder' | 'goal';
+//  Things that stand on a snow or ice tile. The goal is the exit; a plate is a pressure plate,
+//  pressed while the player or a boulder rests on it.
+export type EntityKind = 'player' | 'boulder' | 'goal' | 'plate';
 
 export interface LegendEntry
 {
@@ -35,5 +36,7 @@ export const LEGEND: Readonly<Record<string, LegendEntry>> = {
     'b': { tile: TileIndex.Floor, entity: 'boulder' },
     'B': { tile: TileIndex.Ice, entity: 'boulder' },
     'x': { tile: TileIndex.Floor, entity: 'goal' },
-    'X': { tile: TileIndex.Ice, entity: 'goal' }
+    'X': { tile: TileIndex.Ice, entity: 'goal' },
+    'o': { tile: TileIndex.Floor, entity: 'plate' },
+    'O': { tile: TileIndex.Ice, entity: 'plate' }
 };

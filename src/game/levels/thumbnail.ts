@@ -5,6 +5,7 @@ import { TILE_SIZE } from './Tiles';
 import { AUTOTILE_SETS, autotileFrame, displayTileIndex, isTallSet } from './autotile';
 import { PLAYER_FRAME_HEIGHT, PLAYER_FRAME_WIDTH } from '../playerAnimations';
 import { PLAYER_SPRITE } from '../settings';
+import { PLATE_ART_TILE_SIZE, PLATE_DROP, PLATE_FRAME_HEIGHT, PLATE_FRAME_WIDTH, PLATE_UP_FRAME } from '../plates';
 
 //  Pixels per tile of the art itself; thumbnails with smaller tiles shrink it
 const ART_TILE_SIZE = 16;
@@ -66,7 +67,7 @@ export function levelThumbnail (scene: Scene, level: LevelInfo, maxWidth: number
         ctx.drawImage(source(textureKey), f.cutX, f.cutY, f.cutWidth, f.cutHeight, x, y, w, h);
     };
 
-    //  Terrain (the tilemap), then the exit ring: both under everything else
+    //  Terrain (the tilemap), then the exit ring and raised pressure plates: all under everything else
     const strip = source('tiles');
     tiles.forEach((row, y) => row.forEach((_tile, x) =>
     {
@@ -79,6 +80,13 @@ export function levelThumbnail (scene: Scene, level: LevelInfo, maxWidth: number
     if (data.goal)
     {
         ctx.drawImage(source('goal'), data.goal.x * T, top + data.goal.y * T, T, T);
+    }
+    const plateWidth = T * PLATE_FRAME_WIDTH / PLATE_ART_TILE_SIZE;
+    const plateHeight = T * PLATE_FRAME_HEIGHT / PLATE_ART_TILE_SIZE;
+    for (const p of data.plates)
+    {
+        drawFrame('plate-press', PLATE_UP_FRAME, p.x * T + (T - plateWidth) / 2, top + (p.y + 1) * T + PLATE_DROP * scale - plateHeight,
+            plateWidth, plateHeight);
     }
 
     //  Then row by row, so things further down cover the tall walls behind them

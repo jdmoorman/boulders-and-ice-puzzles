@@ -3,7 +3,7 @@ import { cellKey, EditorLevel, EditorSnapshot, EditorTool } from '../editor/Edit
 import { parseLevelDraft, GridPoint, LevelParseError } from '../levels/LevelParser';
 import { TILE_SIZE, TileIndex } from '../levels/Tiles';
 import { AUTOTILE_SETS, AutotileSet, displayTileIndex, isTallSet } from '../levels/autotile';
-import { addBoulder, addGoal, addPlayer, addTallTile, tileCenter } from '../levels/LevelLoader';
+import { addBoulder, addGoal, addPlate, addPlayer, addTallTile, tileCenter } from '../levels/LevelLoader';
 import { playerAnimKey } from '../playerAnimations';
 import type { GameData } from './Game';
 import { AnalysisProgress, EditorAnalysis } from '../editor/EditorAnalysis';
@@ -44,12 +44,12 @@ const MAX_IMPORT_SIZE = 256;
 //  Above every y-sorted object on the canvas
 const OVERLAY_DEPTH = 1e7;
 
-//  Palette tools, in order (keys 1-6)
-export const PALETTE: readonly EditorTool[] = ['wall', 'snow', 'ice', 'exit', 'player', 'boulder'];
+//  Palette tools, in order (keys 1-7)
+export const PALETTE: readonly EditorTool[] = ['wall', 'snow', 'ice', 'exit', 'player', 'boulder', 'plate'];
 
 //  Tools that paint every cell along a drag. The others (exit, player) are placed
 //  once, on the cell where the mouse was pressed.
-const DRAG_TOOLS: ReadonlySet<EditorTool> = new Set<EditorTool>(['wall', 'snow', 'ice', 'boulder', 'erase']);
+const DRAG_TOOLS: ReadonlySet<EditorTool> = new Set<EditorTool>(['wall', 'snow', 'ice', 'boulder', 'plate', 'erase']);
 
 //  Events emitted on this scene's event emitter for the HUD
 export const EDITOR_EVENTS = {
@@ -75,6 +75,7 @@ export class Editor extends Scene
     private isTall: (set: AutotileSet) => boolean;
     private tallImages = new Map<string, GameObjects.Image>();
     private boulderImages = new Map<string, GameObjects.Image>();
+    private plateImages = new Map<string, GameObjects.Sprite>();
     private playerSprite: GameObjects.Sprite | null = null;
     private goalImage: GameObjects.Image | null = null;
     private hover: GameObjects.Rectangle;
@@ -126,6 +127,7 @@ export class Editor extends Scene
     {
         this.tallImages.clear();
         this.boulderImages.clear();
+        this.plateImages.clear();
         this.playerSprite = null;
         this.goalImage = null;
         this.stroke = null;
@@ -416,6 +418,7 @@ export class Editor extends Scene
             {
                 this.drawTerrain(x, y);
                 this.drawBoulder(x, y);
+                this.drawPlate(x, y);
             }
         }
         this.drawPlayerAndGoal();
@@ -466,6 +469,22 @@ export class Editor extends Scene
         }
     }
 
+    private drawPlate (x: number, y: number)
+    {
+        const key = cellKey(x, y);
+        const image = this.plateImages.get(key);
+        const has = this.state.level.hasPlateAt(x, y);
+        if (has && !image)
+        {
+            this.plateImages.set(key, addPlate(this, { x, y }));
+        }
+        else if (!has && image)
+        {
+            image.destroy();
+            this.plateImages.delete(key);
+        }
+    }
+
     private drawPlayerAndGoal ()
     {
         const { player, goal } = this.state.level;
@@ -513,6 +532,7 @@ export class Editor extends Scene
                 }
             }
             this.drawBoulder(cell.x, cell.y);
+            this.drawPlate(cell.x, cell.y);
         }
         if (changed.length > 0)
         {
@@ -718,7 +738,7 @@ export class Editor extends Scene
                     }
                 });
             };
-            const numberKeys = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX'];
+            const numberKeys = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN'];
             PALETTE.forEach((tool, i) =>
             {
                 onKey(numberKeys[i], () => this.selectTool(tool));

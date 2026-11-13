@@ -4,6 +4,7 @@ import { TILE_SIZE } from './Tiles';
 import { PLAYER_FRAME_HEIGHT } from '../playerAnimations';
 import { PLAYER_SPRITE } from '../settings';
 import { AUTOTILE_SETS, AutotileSet, autotileFrame, autotileFrameSize, autotileLevel, isTallSet } from './autotile';
+import { Plate, PLATE_ART_TILE_SIZE, PLATE_DROP, PLATE_UP_FRAME } from '../plates';
 
 export interface BuiltLevel
 {
@@ -12,6 +13,8 @@ export interface BuiltLevel
     layer: Tilemaps.TilemapLayer | Tilemaps.TilemapGPULayer;
     player: GameObjects.Sprite;
     boulders: GameObjects.Image[];
+    //  In the same order as data.plates; all raised at the start
+    plates: Plate[];
 }
 
 //  World position of a tile's center
@@ -23,7 +26,8 @@ export function tileCenter (p: GridPoint): { x: number, y: number }
     };
 }
 
-//  Draw order: the tilemap sits at depth 0 and the exit just above it, under everything else.
+//  Draw order: the tilemap sits at depth 0 and the exit and pressure plates just above it, under
+//  everything else.
 //  Tall wall images, the player and boulders are sorted by the bottom edge of the tile they stand
 //  on, so a tall wall covers things on the tiles north of it and is covered by things south of it.
 //  Sets an object's depth from the bottom edge of the tile its centre is in.
@@ -47,7 +51,7 @@ export function addTallTile (
     return image;
 }
 
-//  Depth of the exit: over the terrain but under everything that stands on tiles (y-sorted
+//  Depth of the exit and pressure plates: over the terrain but under everything that stands on tiles (y-sorted
 //  objects start at TILE_SIZE / 2), so the player is drawn over it
 export const GOAL_DEPTH = 0.5;
 
@@ -56,6 +60,18 @@ export function addGoal (scene: Scene, p: GridPoint): GameObjects.Image
 {
     const { x, y } = tileCenter(p);
     return scene.add.image(x, y, 'goal').setDepth(GOAL_DEPTH);
+}
+
+//  Adds a raised pressure plate on tile p, centred across the tile with its bottom edge
+//  PLATE_DROP pixels below the tile's bottom edge, at the same pixel scale as the player. Drawn with the exit: over the
+//  terrain, under the player and boulders.
+export function addPlate (scene: Scene, p: GridPoint): GameObjects.Sprite
+{
+    const { x } = tileCenter(p);
+    return scene.add.sprite(x, (p.y + 1) * TILE_SIZE + PLATE_DROP, 'plate-press', PLATE_UP_FRAME)
+        .setOrigin(0.5, 1)
+        .setScale(TILE_SIZE / PLATE_ART_TILE_SIZE)
+        .setDepth(GOAL_DEPTH);
 }
 
 //  Adds a boulder image on tile p.
@@ -85,8 +101,8 @@ export function addPlayer (scene: Scene, p: GridPoint): GameObjects.Sprite
 }
 
 //  Builds a tilemap and entity sprites from parsed level data, and makes the camera follow the player.
-//  Requires the 'tiles' and 'goal' textures from generateTextures(), and the 'player' spritesheet and
-//  'boulder' image loaded in the Preloader.
+//  Requires the 'tiles' and 'goal' textures from generateTextures(), and the 'player' and plate
+//  spritesheets and 'boulder' image loaded in the Preloader.
 export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
 {
     const map = scene.make.tilemap({
@@ -127,6 +143,7 @@ export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
         addGoal(scene, data.goal);
     }
 
+    const plates = data.plates.map(p => ({ position: p, sprite: addPlate(scene, p), pressed: false }));
     const boulders = data.boulders.map(b => addBoulder(scene, b));
     const player = addPlayer(scene, data.player);
 
@@ -136,5 +153,5 @@ export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
     camera.setZoom(1);
     camera.startFollow(player, true);
 
-    return { data, map, layer, player, boulders };
+    return { data, map, layer, player, boulders, plates };
 }

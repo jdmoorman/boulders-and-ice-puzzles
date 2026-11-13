@@ -1,7 +1,7 @@
 import { GridPoint, LevelData, LevelDraft } from '../levels/LevelParser';
 import { TileIndex } from '../levels/Tiles';
 
-export type EditorTool = 'wall' | 'snow' | 'ice' | 'exit' | 'player' | 'boulder' | 'erase';
+export type EditorTool = 'wall' | 'snow' | 'ice' | 'exit' | 'player' | 'boulder' | 'plate' | 'erase';
 
 //  Default editing canvas size, in tiles. A level that doesn't fit with MARGIN tiles to spare
 //  gets a bigger canvas.
@@ -12,6 +12,11 @@ export const cellKey = (x: number, y: number) => `${x},${y}`;
 const isGround = (tile: number) => tile === TileIndex.Floor || tile === TileIndex.Ice;
 const samePoint = (a: GridPoint | null, b: GridPoint | null) =>
     a === b || (a !== null && b !== null && a.x === b.x && a.y === b.y);
+const pointOfKey = (key: string): GridPoint =>
+{
+    const [x, y] = key.split(',').map(Number);
+    return { x, y };
+};
 
 //  A copy of a level's contents, for undo and redo. Tiles are flattened row by row, one byte each.
 export interface EditorSnapshot
@@ -20,10 +25,11 @@ export interface EditorSnapshot
     player: GridPoint | null;
     goal: GridPoint | null;
     boulders: string[];
+    plates: string[];
 }
 
-//  The level being edited: a fixed-size square canvas of tiles plus the player, boulders and
-//  exit. Plain data, so it can be kept in the registry across playtests.
+//  The level being edited: a fixed-size square canvas of tiles plus the player, boulders,
+//  pressure plates and exit. Each cell holds at most one of those. Plain data, so it can be kept in the registry across playtests.
 export class EditorLevel
 {
     readonly size: number;
@@ -31,8 +37,9 @@ export class EditorLevel
     readonly tiles: number[][];
     player: GridPoint | null = null;
     goal: GridPoint | null = null;
-    //  Boulder positions as "x,y" keys
+    //  Boulder and pressure plate positions as "x,y" keys
     readonly boulders = new Set<string>();
+    readonly plates = new Set<string>();
 
     constructor (size = EDITOR_SIZE)
     {
@@ -58,6 +65,10 @@ export class EditorLevel
         {
             level.boulders.add(cellKey(b.x + ox, b.y + oy));
         }
+        for (const p of data.plates)
+        {
+            level.plates.add(cellKey(p.x + ox, p.y + oy));
+        }
         return level;
     }
 
@@ -81,6 +92,11 @@ export class EditorLevel
         return this.boulders.has(cellKey(x, y));
     }
 
+    hasPlateAt (x: number, y: number): boolean
+    {
+        return this.plates.has(cellKey(x, y));
+    }
+
     snapshot (): EditorSnapshot
     {
         const tiles = new Int8Array(this.size * this.size);
@@ -89,7 +105,8 @@ export class EditorLevel
             tiles,
             player: this.player && { ...this.player },
             goal: this.goal && { ...this.goal },
-            boulders: [...this.boulders]
+            boulders: [...this.boulders],
+            plates: [...this.plates]
         };
     }
 
@@ -111,17 +128,19 @@ export class EditorLevel
             }
         }
 
-        const boulders = new Set(s.boulders);
-        for (const k of new Set([...this.boulders, ...boulders]))
+        for (const [now, then] of [[this.boulders, s.boulders], [this.plates, s.plates]] as const)
         {
-            if (this.boulders.has(k) !== boulders.has(k))
+            const restored = new Set(then);
+            for (const k of new Set([...now, ...restored]))
             {
-                const [x, y] = k.split(',').map(Number);
-                changed.push({ x, y });
+                if (now.has(k) !== restored.has(k))
+                {
+                    changed.push(pointOfKey(k));
+                }
             }
+            now.clear();
+            restored.forEach(k => now.add(k));
         }
-        this.boulders.clear();
-        boulders.forEach(k => this.boulders.add(k));
 
         for (const [now, then] of [[this.player, s.player], [this.goal, s.goal]] as const)
         {
@@ -182,6 +201,12 @@ export class EditorLevel
                 this.boulders.add(cellKey(x, y));
                 break;
 
+            case 'plate':
+                this.makeGround(x, y);
+                this.clearEntity(x, y);
+                this.plates.add(cellKey(x, y));
+                break;
+
             case 'erase':
                 this.setTile(x, y, TileIndex.Void);
                 break;
@@ -220,11 +245,8 @@ export class EditorLevel
             tiles: this.tiles.map(row => [...row]),
             player: { ...this.player },
             goal: this.goal && { ...this.goal },
-            boulders: [...this.boulders].map(k =>
-            {
-                const [x, y] = k.split(',').map(Number);
-                return { x, y };
-            })
+            boulders: [...this.boulders].map(pointOfKey),
+            plates: [...this.plates].map(pointOfKey)
         };
     }
 
@@ -278,6 +300,10 @@ export class EditorLevel
         {
             return onIce ? 'B' : 'b';
         }
+        if (this.hasPlateAt(x, y))
+        {
+            return onIce ? 'O' : 'o';
+        }
         switch (tile)
         {
             case TileIndex.Wall: return '#';
@@ -287,7 +313,7 @@ export class EditorLevel
         }
     }
 
-    //  Sets a tile. The player, boulders and exit stand only on snow or ice, so any on a cell
+    //  Sets a tile. The player, boulders, plates and exit stand only on snow or ice, so any on a cell
     //  that becomes something else are removed.
     private setTile (x: number, y: number, tile: TileIndex)
     {
@@ -307,7 +333,7 @@ export class EditorLevel
         }
     }
 
-    //  Removes the player, a boulder or the exit from a cell
+    //  Removes the player, a boulder, a plate or the exit from a cell
     private clearEntity (x: number, y: number)
     {
         if (this.isPlayerAt(x, y))
@@ -319,11 +345,12 @@ export class EditorLevel
             this.goal = null;
         }
         this.boulders.delete(cellKey(x, y));
+        this.plates.delete(cellKey(x, y));
     }
 
     //  A string describing everything in a cell, for change detection
     private cellState (x: number, y: number): string
     {
-        return `${this.tiles[y][x]}|${this.isPlayerAt(x, y)}|${this.hasBoulderAt(x, y)}|${this.isGoalAt(x, y)}`;
+        return `${this.tiles[y][x]}|${this.isPlayerAt(x, y)}|${this.hasBoulderAt(x, y)}|${this.isGoalAt(x, y)}|${this.hasPlateAt(x, y)}`;
     }
 }
