@@ -23,9 +23,9 @@ export function tileCenter (p: GridPoint): { x: number, y: number }
     };
 }
 
-//  Draw order: the tilemap and exit ring sit at depth 0, under everything. Tall wall images,
-//  the player and boulders are sorted by the bottom edge of the tile they stand on, so a tall
-//  wall covers things on the tiles north of it and is covered by things south of it.
+//  Draw order: the tilemap sits at depth 0 and the exit just above it, under everything else.
+//  Tall wall images, the player and boulders are sorted by the bottom edge of the tile they stand
+//  on, so a tall wall covers things on the tiles north of it and is covered by things south of it.
 //  Sets an object's depth from the bottom edge of the tile its centre is in.
 export function ySortDepth (obj: GameObjects.Image | GameObjects.Sprite): void
 {
@@ -45,6 +45,17 @@ export function addTallTile (
         .setScale(scale)
         .setDepth(bottom);
     return image;
+}
+
+//  Depth of the exit: over the terrain but under everything that stands on tiles (y-sorted
+//  objects start at TILE_SIZE / 2), so the player is drawn over it
+export const GOAL_DEPTH = 0.5;
+
+//  Adds the exit, a gold ring, on tile p
+export function addGoal (scene: Scene, p: GridPoint): GameObjects.Image
+{
+    const { x, y } = tileCenter(p);
+    return scene.add.image(x, y, 'goal').setDepth(GOAL_DEPTH);
 }
 
 //  Adds a boulder image on tile p.
@@ -111,11 +122,9 @@ export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
         }));
     }
 
-    //  The exit's ring, over the snow tile under it
     if (data.goal)
     {
-        const goal = tileCenter(data.goal);
-        scene.add.image(goal.x, goal.y, 'goal');
+        addGoal(scene, data.goal);
     }
 
     const boulders = data.boulders.map(b => addBoulder(scene, b));

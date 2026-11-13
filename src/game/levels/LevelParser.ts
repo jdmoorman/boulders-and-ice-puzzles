@@ -1,4 +1,4 @@
-import { LEGEND, TileIndex } from './Tiles';
+import { LEGEND } from './Tiles';
 
 export interface GridPoint
 {
@@ -88,7 +88,7 @@ export function parseLevelDraft (text: string): LevelDraft
 
             row.push(entry.tile);
 
-            if (entry.tile === TileIndex.Goal)
+            if (entry.entity === 'goal')
             {
                 if (goal)
                 {

@@ -31,12 +31,17 @@ export function boulderAt (data: LevelData, p: GridPoint): number
     return data.boulders.findIndex(b => b.x === p.x && b.y === p.y);
 }
 
+function isGoal (data: LevelData, p: GridPoint): boolean
+{
+    return data.goal !== null && data.goal.x === p.x && data.goal.y === p.y;
+}
+
 //  True if nothing can enter this cell: off the map, void, wall, the exit, or a boulder.
 //  (The exit is handled as a special case by resolveMove.)
 export function isBlocked (data: LevelData, p: GridPoint): boolean
 {
     const tile = tileAt(data, p);
-    if (tile === TileIndex.Void || tile === TileIndex.Wall || tile === TileIndex.Goal)
+    if (tile === TileIndex.Void || tile === TileIndex.Wall || isGoal(data, p))
     {
         return true;
     }
@@ -101,7 +106,7 @@ export function resolveMove (data: LevelData, from: GridPoint, dir: Direction): 
     //  if nothing was walked, or if it ended on ice.
     const stoppedByBlock = path.length === 0 || tileAt(data, end) === TileIndex.Ice;
     const next = step(end, dir);
-    if (stoppedByBlock && tileAt(data, next) === TileIndex.Goal)
+    if (stoppedByBlock && isGoal(data, next))
     {
         return { kind: 'exit', path, exit: next };
     }

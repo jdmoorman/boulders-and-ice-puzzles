@@ -1,5 +1,5 @@
 import { Scene } from 'phaser';
-import { TileIndex } from './Tiles';
+import { PLAIN_TILE_COUNT, TileIndex } from './Tiles';
 
 //  Autotiling with tilesets in Godot's 3x3 minimal (47 tile) layout: 12 columns x 4 rows of
 //  tiles, with one cell (column 10, row 1) left empty.
@@ -35,19 +35,19 @@ export const AUTOTILE_SETS: readonly AutotileSet[] = [
         tiles: [TileIndex.Wall],
         joins: n => n === TileIndex.Wall
     },
-    //  Snow covers floor and the exit (its ring is drawn on top). Walls count as snow, so the
-    //  snow runs up to them without an edge; it gets a shaded edge against ice and void.
+    //  Snow covers floor. Walls count as snow, so the snow runs up to them without an edge; it
+    //  gets a shaded edge against ice and void.
     {
         texture: 'snowAutotile',
-        tiles: [TileIndex.Floor, TileIndex.Goal],
-        joins: n => n === TileIndex.Floor || n === TileIndex.Goal || n === TileIndex.Wall
+        tiles: [TileIndex.Floor],
+        joins: n => n === TileIndex.Floor || n === TileIndex.Wall
     }
 ];
 
 //  'tiles' strip index of a set's first frame
 export function autotileBase (setIndex: number): number
 {
-    return TileIndex.Goal + 1 + setIndex * AUTOTILE_FRAMES;
+    return PLAIN_TILE_COUNT + setIndex * AUTOTILE_FRAMES;
 }
 
 //  Neighbour bits

@@ -3,7 +3,7 @@ import { cellKey, EditorLevel, EditorSnapshot, EditorTool } from '../editor/Edit
 import { parseLevelDraft, GridPoint, LevelParseError } from '../levels/LevelParser';
 import { TILE_SIZE, TileIndex } from '../levels/Tiles';
 import { AUTOTILE_SETS, AutotileSet, displayTileIndex, isTallSet } from '../levels/autotile';
-import { addBoulder, addPlayer, addTallTile, tileCenter } from '../levels/LevelLoader';
+import { addBoulder, addGoal, addPlayer, addTallTile, tileCenter } from '../levels/LevelLoader';
 import { playerAnimKey } from '../playerAnimations';
 import type { GameData } from './Game';
 import { AnalysisProgress, EditorAnalysis } from '../editor/EditorAnalysis';
@@ -451,8 +451,7 @@ export class Editor extends Scene
         this.goalImage = null;
         if (goal)
         {
-            const { x, y } = tileCenter(goal);
-            this.goalImage = this.add.image(x, y, 'goal');
+            this.goalImage = addGoal(this, goal);
         }
     }
 
@@ -498,7 +497,7 @@ export class Editor extends Scene
 
     private createAnalysisOverlay ()
     {
-        //  Just above the terrain and exit ring, so walls, boulders and the player stand in front
+        //  Just above the terrain and the exit, so walls, boulders and the player stand in front
         //  of the shadow (they're y-sorted from depth TILE_SIZE / 2 up)
         this.dimGraphics = this.add.graphics().setDepth(1).setVisible(this.analyzing);
         this.analysisOverlay = this.add.container(0, 0)
@@ -542,7 +541,7 @@ export class Editor extends Scene
         this.dimGraphics.clear().fillStyle(0x000000, 0.5);
         level.tiles.forEach((row, y) => row.forEach((tile, x) =>
         {
-            const ground = tile === TileIndex.Floor || tile === TileIndex.Ice || tile === TileIndex.Goal;
+            const ground = tile === TileIndex.Floor || tile === TileIndex.Ice;
             if (ground && !this.analysis.results.has(cellKey(x, y)))
             {
                 this.dimGraphics.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);

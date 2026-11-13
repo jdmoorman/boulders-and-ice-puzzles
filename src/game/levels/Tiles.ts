@@ -6,13 +6,16 @@ export enum TileIndex
     Void = -1,  //  Phaser treats -1 as "no tile"
     Floor = 0,
     Ice = 1,
-    Wall = 2,
-    Goal = 3
+    Wall = 2
 }
+
+//  Number of plain tiles at the start of the 'tiles' strip, before the autotile frames
+export const PLAIN_TILE_COUNT = TileIndex.Wall + 1;
 
 export const TILE_SIZE = 64;
 
-export type EntityKind = 'player' | 'boulder';
+//  Things that stand on a snow or ice tile. The goal is the exit.
+export type EntityKind = 'player' | 'boulder' | 'goal';
 
 export interface LegendEntry
 {
@@ -27,9 +30,10 @@ export const LEGEND: Readonly<Record<string, LegendEntry>> = {
     '#': { tile: TileIndex.Wall },
     '.': { tile: TileIndex.Floor },
     '_': { tile: TileIndex.Ice },
-    'x': { tile: TileIndex.Goal },
     'p': { tile: TileIndex.Floor, entity: 'player' },
     'P': { tile: TileIndex.Ice, entity: 'player' },
     'b': { tile: TileIndex.Floor, entity: 'boulder' },
-    'B': { tile: TileIndex.Ice, entity: 'boulder' }
+    'B': { tile: TileIndex.Ice, entity: 'boulder' },
+    'x': { tile: TileIndex.Floor, entity: 'goal' },
+    'X': { tile: TileIndex.Ice, entity: 'goal' }
 };

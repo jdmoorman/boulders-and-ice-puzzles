@@ -277,9 +277,11 @@ function possibleTiles (level: LevelData): Set<number>
             const x = p.x + d.x;
             const y = p.y + d.y;
             const cell = y * width + x;
+            //  The exit stands on snow or ice, but nothing can pass through it
             if (level.goal && x === level.goal.x && y === level.goal.y)
             {
                 exitBorders = true;
+                continue;
             }
             if (isGround(x, y) && !cells.has(cell))
             {

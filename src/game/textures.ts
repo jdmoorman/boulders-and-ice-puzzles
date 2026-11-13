@@ -8,9 +8,9 @@ import {
 
 //  Builds the level textures from the images loaded in the Preloader:
 //  - 'tiles': a horizontal strip of TILE_SIZE tiles in TileIndex order, followed by every frame
-//    of each autotile set (see autotile.ts). Ice is the plain 'ice' image; floor, exit and
-//    walls come from autotile sheets. All are scaled up to a tile.
-//  - 'goal': the exit's gold ring, drawn over the snow under it.
+//    of each autotile set (see autotile.ts). Ice is the plain 'ice' image; floor and walls
+//    come from autotile sheets. All are scaled up to a tile.
+//  - 'goal': the exit's gold ring, drawn over the snow or ice under it.
 //  The player comes from player/openmon/set1-sheet3.png (see playerAnimations.ts) and boulders from rock.png.
 export function generateTextures (scene: Scene): void
 {

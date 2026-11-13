@@ -71,6 +71,11 @@ export class EditorLevel
         return this.player !== null && this.player.x === x && this.player.y === y;
     }
 
+    isGoalAt (x: number, y: number): boolean
+    {
+        return this.goal !== null && this.goal.x === x && this.goal.y === y;
+    }
+
     hasBoulderAt (x: number, y: number): boolean
     {
         return this.boulders.has(cellKey(x, y));
@@ -148,7 +153,6 @@ export class EditorLevel
         {
             case 'wall':
                 this.setTile(x, y, TileIndex.Wall);
-                this.clearEntity(x, y);
                 break;
 
             case 'snow':
@@ -160,34 +164,26 @@ export class EditorLevel
                 break;
 
             case 'exit':
-                if (this.goal && (this.goal.x !== x || this.goal.y !== y))
-                {
-                    //  Only one exit: the old one becomes snow
-                    this.tiles[this.goal.y][this.goal.x] = TileIndex.Floor;
-                }
-                this.tiles[y][x] = TileIndex.Goal;
-                this.goal = { x, y };
+                //  Only one exit, so this moves it; the snow or ice under it stays
+                this.makeGround(x, y);
                 this.clearEntity(x, y);
+                this.goal = { x, y };
                 break;
 
             case 'player':
                 this.makeGround(x, y);
-                this.boulders.delete(cellKey(x, y));
+                this.clearEntity(x, y);
                 this.player = { x, y };
                 break;
 
             case 'boulder':
                 this.makeGround(x, y);
-                if (this.isPlayerAt(x, y))
-                {
-                    this.player = null;
-                }
+                this.clearEntity(x, y);
                 this.boulders.add(cellKey(x, y));
                 break;
 
             case 'erase':
                 this.setTile(x, y, TileIndex.Void);
-                this.clearEntity(x, y);
                 break;
         }
 
@@ -274,6 +270,10 @@ export class EditorLevel
         {
             return onIce ? 'P' : 'p';
         }
+        if (this.isGoalAt(x, y))
+        {
+            return onIce ? 'X' : 'x';
+        }
         if (this.hasBoulderAt(x, y))
         {
             return onIce ? 'B' : 'b';
@@ -283,17 +283,17 @@ export class EditorLevel
             case TileIndex.Wall: return '#';
             case TileIndex.Floor: return '.';
             case TileIndex.Ice: return '_';
-            case TileIndex.Goal: return 'x';
             default: return ' ';
         }
     }
 
-    //  Sets a tile, keeping track of the exit if it's overwritten
+    //  Sets a tile. The player, boulders and exit stand only on snow or ice, so any on a cell
+    //  that becomes something else are removed.
     private setTile (x: number, y: number, tile: TileIndex)
     {
-        if (this.goal && this.goal.x === x && this.goal.y === y && tile !== TileIndex.Goal)
+        if (!isGround(tile))
         {
-            this.goal = null;
+            this.clearEntity(x, y);
         }
         this.tiles[y][x] = tile;
     }
@@ -307,11 +307,16 @@ export class EditorLevel
         }
     }
 
+    //  Removes the player, a boulder or the exit from a cell
     private clearEntity (x: number, y: number)
     {
         if (this.isPlayerAt(x, y))
         {
             this.player = null;
+        }
+        if (this.isGoalAt(x, y))
+        {
+            this.goal = null;
         }
         this.boulders.delete(cellKey(x, y));
     }
@@ -319,6 +324,6 @@ export class EditorLevel
     //  A string describing everything in a cell, for change detection
     private cellState (x: number, y: number): string
     {
-        return `${this.tiles[y][x]}|${this.isPlayerAt(x, y)}|${this.hasBoulderAt(x, y)}`;
+        return `${this.tiles[y][x]}|${this.isPlayerAt(x, y)}|${this.hasBoulderAt(x, y)}|${this.isGoalAt(x, y)}`;
     }
 }
