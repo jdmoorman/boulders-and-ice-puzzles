@@ -1,13 +1,9 @@
-; Demo level
-; Legend: # wall, . floor, _ ice, x goal (player exit), space = void
-;         p/P player start on floor/ice, b/B boulder on floor/ice
-; Rows may be ragged: shorter rows are padded with void on the right.
    ########
 ####P_____#
-#..#.__B__#
-#.....____#
+#x##.__B__#
+#d#o..____#
 #.b..##_..##
 #.___##__..#
 #..B_____#.#
-#.....b...x#
+#.....b....#
 ############
