@@ -4,7 +4,7 @@ import { TILE_SIZE } from './Tiles';
 import { PLAYER_FRAME_HEIGHT } from '../playerAnimations';
 import { PLAYER_SPRITE } from '../settings';
 import { AUTOTILE_SETS, AutotileSet, autotileFrame, autotileFrameSize, autotileLevel, isTallSet } from './autotile';
-import { Plate, PLATE_ART_TILE_SIZE, PLATE_DROP, PLATE_UP_FRAME } from '../plates';
+import { Plate, PLATE_ART_TILE_SIZE, PLATE_DROP, PLATE_PRESSED, PLATE_UP_FRAME } from '../plates';
 import { Door, DOOR_CLOSED, DOOR_FRAME_WIDTH, setDoorOpen } from '../doors';
 import { doorsOpen } from '../movement/Movement';
 
@@ -15,7 +15,7 @@ export interface BuiltLevel
     layer: Tilemaps.TilemapLayer | Tilemaps.TilemapGPULayer;
     player: GameObjects.Sprite;
     boulders: GameObjects.Image[];
-    //  In the same order as data.plates; all raised at the start
+    //  In the same order as data.plates
     plates: Plate[];
     //  In the same order as data.doors
     doors: Door[];
@@ -158,13 +158,24 @@ export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
         addGoal(scene, data.goal);
     }
 
-    const plates = data.plates.map(p => ({ position: p, sprite: addPlate(scene, p), pressed: false }));
-    //  Doors start closed unless nothing holds them shut (a level without plates)
-    const open = doorsOpen(data, [data.player, ...data.boulders]);
+    //  Plates start pressed if the player or a boulder starts on them (as in a level picked up
+    //  where it was left), and doors open if every plate is pressed or something is in the doorway
+    const resting = [data.player, ...data.boulders];
+    const occupied = (p: GridPoint) => resting.some(r => r.x === p.x && r.y === p.y);
+    const plates = data.plates.map(p =>
+    {
+        const plate: Plate = { position: p, sprite: addPlate(scene, p), pressed: occupied(p) };
+        if (plate.pressed)
+        {
+            plate.sprite.setTexture(PLATE_PRESSED.key, PLATE_PRESSED.frame);
+        }
+        return plate;
+    });
+    const open = doorsOpen(data, resting);
     const doors = data.doors.map(p =>
     {
         const door: Door = { position: p, sprite: addDoor(scene, p), open: false };
-        setDoorOpen(door, open, false);
+        setDoorOpen(door, open || occupied(p), false);
         return door;
     });
     const boulders = data.boulders.map(b => addBoulder(scene, b));

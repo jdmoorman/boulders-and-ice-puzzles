@@ -12,6 +12,8 @@ export const PLATE_FRAME_WIDTH = 14;
 export const PLATE_FRAME_HEIGHT = 13;
 //  The frame of 'plate-press' showing a raised plate
 export const PLATE_UP_FRAME = 0;
+//  A pressed plate at rest: the first frame of the animation that releases it
+export const PLATE_PRESSED: Readonly<{ key: string, frame: number }> = { key: 'plate-unpress', frame: 0 };
 const PLATE_FPS = 12;
 //  The art's pixels per tile, as for the player
 export const PLATE_ART_TILE_SIZE = 16;

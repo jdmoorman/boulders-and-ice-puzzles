@@ -3,6 +3,7 @@ import { parseLevel, GridPoint } from '../levels/LevelParser';
 import { buildLevel, BuiltLevel, tileCenter, ySortDepth } from '../levels/LevelLoader';
 import { LEVELS, isLastInPack } from '../levels/levelList';
 import { markCompleted } from '../progress';
+import { clearLevelInProgress, fitsLevel, loadLevelInProgress, saveLevelInProgress } from '../levelInProgress';
 import { doorsOpen, resolveMove, Direction } from '../movement/Movement';
 import { MOVEMENT, PLATES } from '../settings';
 import { playerAnimKey, PlayerAnimKind } from '../playerAnimations';
@@ -18,6 +19,8 @@ export interface GameData
     levelIndex?: number;
     //  Set when playtesting from the editor: the level to play, instead of LEVELS[levelIndex]
     levelText?: string;
+    //  Pick the level up where it was left (see levelInProgress.ts), if it was saved
+    resume?: boolean;
 }
 
 //  Stops Game and starts another scene, for overlays (pause menu, level complete) leaving play
@@ -44,6 +47,7 @@ export class Game extends Scene
     private directionKeys: Record<Direction, Input.Keyboard.Key[]> | null = null;
     //  Direction whose blocked move was already reported, so a held key reports it once
     private reportedDir: Direction | null = null;
+    private resume = false;
 
     constructor ()
     {
@@ -54,6 +58,7 @@ export class Game extends Scene
     {
         this.levelIndex = data.levelIndex ?? 0;
         this.levelText = data.levelText ?? null;
+        this.resume = data.resume ?? false;
     }
 
     //  Data that starts this same level again
@@ -68,13 +73,21 @@ export class Game extends Scene
 
         //  level.data.boulders holds live boulder positions, in the same order as level.boulders sprites
         const data = parseLevel(this.levelText ?? this.cache.text.get(LEVELS[this.levelIndex].key));
+        this.facing = 'down';
+        const saved = this.resume ? loadLevelInProgress() : null;
+        if (saved && !this.levelText && saved.levelKey === LEVELS[this.levelIndex].key && fitsLevel(saved, data))
+        {
+            data.player = saved.player;
+            data.boulders = saved.boulders;
+            this.facing = saved.facing;
+        }
         this.level = buildLevel(this, data);
         this.playerPos = { ...data.player };
         this.isMoving = false;
         this.levelComplete = false;
         this.reportedDir = null;
-        this.facing = 'down';
         this.playPlayerAnim('idle');
+        this.saveProgress();
 
         const keyboard = this.input.keyboard;
         if (keyboard)
@@ -254,7 +267,24 @@ export class Game extends Scene
             {
                 onDone();
                 this.isMoving = false;
+                this.saveProgress();
             }
+        });
+    }
+
+    //  Remembers where everything is, so Play can pick the level up after a reload. Not for
+    //  editor playtests, or once the level is complete.
+    private saveProgress ()
+    {
+        if (this.levelText || this.levelComplete)
+        {
+            return;
+        }
+        saveLevelInProgress({
+            levelKey: LEVELS[this.levelIndex].key,
+            player: { ...this.playerPos },
+            boulders: this.level.data.boulders.map(b => ({ ...b })),
+            facing: this.facing
         });
     }
 
@@ -277,6 +307,7 @@ export class Game extends Scene
         if (!this.levelText)
         {
             markCompleted(LEVELS[this.levelIndex].key);
+            clearLevelInProgress();
         }
         const data: LevelCompleteData = {
             levelIndex: this.levelIndex,
