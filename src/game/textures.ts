@@ -97,6 +97,53 @@ export function generateTextures (scene: Scene): void
     addArrowTexture(scene, 'icon-undo', false);
     addArrowTexture(scene, 'icon-redo', true);
     addLockTexture(scene);
+    addGearTexture(scene);
+}
+
+//  A gear, for the editor's Options button: white with a black outline
+function addGearTexture (scene: Scene): void
+{
+    const size = 48;
+    const texture = scene.textures.createCanvas('icon-gear', size, size);
+    if (!texture)
+    {
+        throw new Error("Could not create canvas texture 'icon-gear'");
+    }
+    const c = texture.context;
+    const centre = size / 2;
+    const teeth = 8;
+
+    //  The outer edge: a ring with square teeth, each tooth a little narrower at its tip
+    const outline = () =>
+    {
+        c.beginPath();
+        for (let i = 0; i < teeth; i++)
+        {
+            const a = (i / teeth) * Math.PI * 2;
+            const step = Math.PI / teeth;
+            const points: [number, number][] = [
+                [13, a - step * 0.55], [18, a - step * 0.4], [18, a + step * 0.4], [13, a + step * 0.55]
+            ];
+            for (const [r, angle] of points)
+            {
+                c.lineTo(centre + Math.cos(angle) * r, centre + Math.sin(angle) * r);
+            }
+        }
+        c.closePath();
+        //  The hole, cut out with the even-odd rule
+        c.moveTo(centre + 5, centre);
+        c.arc(centre, centre, 5, 0, Math.PI * 2);
+    };
+
+    c.lineJoin = 'round';
+    c.strokeStyle = '#000000';
+    c.lineWidth = 6;
+    outline();
+    c.stroke();
+    c.fillStyle = '#ffffff';
+    c.fill('evenodd');
+
+    texture.refresh();
 }
 
 //  A padlock, for locked levels: white with a black outline

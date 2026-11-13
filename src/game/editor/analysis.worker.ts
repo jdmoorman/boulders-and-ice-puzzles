@@ -1,10 +1,10 @@
 import { DIRECTION_DELTA, Direction, resolveMove } from '../movement/Movement';
 import type { GridPoint, LevelData } from '../levels/LevelParser';
 import { TileIndex } from '../levels/Tiles';
-import { AnalysisMessage, DIRECTION_LETTERS, FoundTile, MAX_STATES } from './analysisShared';
+import { AnalysisMessage, AnalysisRequest, DIRECTION_LETTERS, FoundTile, MAX_STATES } from './analysisShared';
 
 //  Web Worker that finds the fewest moves from the player's start to every tile it can reach.
-//  Receives a LevelData and posts AnalysisMessages (see analysisShared.ts).
+//  Receives an AnalysisRequest and posts AnalysisMessages (see analysisShared.ts).
 //
 //  Searches positions: the player's cell plus the cells of all boulders (boulders are
 //  interchangeable, so their cells are kept sorted). Moves follow the game's own rules via
@@ -12,15 +12,17 @@ import { AnalysisMessage, DIRECTION_LETTERS, FoundTile, MAX_STATES } from './ana
 //  it, so ice the player slides across counts too (an exit placed there would stop the slide).
 //  Reaching the exit is a final move that isn't explored further.
 //
-//  Walking around on snow is trivial, so steps from snow to snow are free; every other move costs
-//  1. The search is a 0-1 breadth-first search: positions are explored in order of cost, one cost
-//  at a time, with free steps joining the current cost and paid moves the next.
+//  Walking around on snow is trivial, so with freeSnowWalking set, steps from snow to snow are
+//  free; every other move costs 1. The search is a 0-1 breadth-first search: positions are
+//  explored in order of cost, one cost at a time, with free steps joining the current cost and
+//  paid moves the next. Without free steps it's a plain breadth-first search.
 
 const DIRECTIONS: readonly Direction[] = ['up', 'down', 'left', 'right'];
 const PROGRESS_MS = 100;
 const CHECK_EVERY = 1000;
 
-addEventListener('message', (event: MessageEvent<LevelData>) => analyze(event.data));
+addEventListener('message', (event: MessageEvent<AnalysisRequest>) =>
+    analyze(event.data.level, event.data.freeSnowWalking));
 
 //  The best way found so far to reach a tile: from a position, plus the final move when the tile
 //  is passed through (or is the exit) rather than stood on
@@ -31,12 +33,13 @@ interface Candidate
     last?: Direction;
 }
 
-function analyze (level: LevelData): void
+function analyze (level: LevelData, freeSnowWalking: boolean): void
 {
     const { width, tiles } = level;
     const cellOf = (p: GridPoint) => p.y * width + p.x;
     const pointOf = (i: number): GridPoint => ({ x: i % width, y: Math.floor(i / width) });
-    const isFloor = (p: GridPoint) => tiles[p.y][p.x] === TileIndex.Floor;
+    //  Snow whose steps to more snow are free
+    const isFreeSnow = (p: GridPoint) => freeSnowWalking && tiles[p.y][p.x] === TileIndex.Floor;
     const possible = possibleTiles(level);
 
     //  Per position: the player's cell, its boulder cells (flat, boulderCount per position),
@@ -191,7 +194,7 @@ function analyze (level: LevelData): void
             const player = pointOf(players[s]);
             const cells = boulders.slice(s * boulderCount, (s + 1) * boulderCount);
             data.boulders = cells.map(pointOf);
-            const onFloor = isFloor(player);
+            const onFreeSnow = isFreeSnow(player);
 
             DIRECTIONS.forEach((dir, d) =>
             {
@@ -201,7 +204,7 @@ function analyze (level: LevelData): void
                     case 'walk':
                     {
                         const end = result.path[result.path.length - 1];
-                        if (onFloor && result.path.length === 1 && isFloor(end))
+                        if (onFreeSnow && result.path.length === 1 && isFreeSnow(end))
                         {
                             addState(cellOf(end), cells, s, d, costOf);
                             break;
@@ -222,10 +225,10 @@ function analyze (level: LevelData): void
 
                     case 'exit':
                     {
-                        //  Stepping straight off snow into the exit is free, like any snow step
-                        const fromFloor = onFloor && result.path.length === 0;
+                        //  Stepping straight off snow into the exit is free, like any free snow step
+                        const fromFreeSnow = onFreeSnow && result.path.length === 0;
                         result.path.forEach(p => reach(cellOf(p), costOf + 1, s, dir));
-                        reach(cellOf(result.exit), fromFloor ? costOf : costOf + 1, s, dir);
+                        reach(cellOf(result.exit), fromFreeSnow ? costOf : costOf + 1, s, dir);
                         break;
                     }
                 }

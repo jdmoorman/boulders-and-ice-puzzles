@@ -1,4 +1,5 @@
 import type { Direction } from '../movement/Movement';
+import type { LevelData } from '../levels/LevelParser';
 
 //  Shared by the analysis worker and the editor. Kept apart from the worker module so the editor
 //  can import these without loading the worker's code on the main thread.
@@ -10,6 +11,14 @@ export const MAX_STATES = 1_000_000;
 export const DIRECTION_LETTERS: Readonly<Record<Direction, string>> = { up: 'U', down: 'D', left: 'L', right: 'R' };
 export const LETTER_DIRECTIONS: Readonly<Record<string, Direction>> = { U: 'up', D: 'down', L: 'left', R: 'right' };
 
+//  Sent to the worker to start a search
+export interface AnalysisRequest
+{
+    level: LevelData;
+    //  Whether steps from snow to snow are free (see EditorSettings)
+    freeSnowWalking: boolean;
+}
+
 //  A tile the search reached, with the cheapest move sequence that gets the player there
 export interface FoundTile
 {
@@ -17,7 +26,7 @@ export interface FoundTile
     y: number;
     //  Every arrow-key press, one letter each
     moves: string;
-    //  The number of moves, not counting steps from snow to snow (walking on snow is free)
+    //  The number of moves, not counting steps from snow to snow if walking on snow is free
     cost: number;
 }
 

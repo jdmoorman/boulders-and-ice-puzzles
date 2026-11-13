@@ -1,7 +1,7 @@
 import { GridPoint, LevelData } from '../levels/LevelParser';
 import { resolveMove } from '../movement/Movement';
 import { cellKey, EditorLevel } from './EditorLevel';
-import { AnalysisMessage, FoundTile, LETTER_DIRECTIONS } from './analysisShared';
+import { AnalysisMessage, AnalysisRequest, FoundTile, LETTER_DIRECTIONS } from './analysisShared';
 
 //  How long the map has to stay unchanged before a new search starts, so a paint drag doesn't
 //  restart it for every cell
@@ -41,8 +41,9 @@ export class EditorAnalysis
     //  onUpdate is called whenever the results or progress change, with the newly found tiles
     constructor (private readonly onUpdate: (tiles: FoundTile[]) => void) {}
 
-    //  Discards the current results and analyzes the level again once it stops changing
-    restart (level: EditorLevel, delay = RESTART_DELAY_MS)
+    //  Discards the current results and analyzes the level again once it stops changing.
+    //  freeSnowWalking: whether steps from snow to snow are free (see EditorSettings).
+    restart (level: EditorLevel, freeSnowWalking: boolean, delay = RESTART_DELAY_MS)
     {
         this.stop();
         this.results.clear();
@@ -54,7 +55,7 @@ export class EditorAnalysis
 
         if (level.player)
         {
-            this.timer = window.setTimeout(() => this.start(level), delay);
+            this.timer = window.setTimeout(() => this.start(level, freeSnowWalking), delay);
         }
     }
 
@@ -101,7 +102,7 @@ export class EditorAnalysis
         return segments;
     }
 
-    private start (level: EditorLevel)
+    private start (level: EditorLevel, freeSnowWalking: boolean)
     {
         this.timer = null;
         const data = level.toLevelData();
@@ -141,7 +142,8 @@ export class EditorAnalysis
             this.progress = null;
             this.onUpdate([]);
         });
-        worker.postMessage(data);
+        const request: AnalysisRequest = { level: data, freeSnowWalking };
+        worker.postMessage(request);
         this.worker = worker;
     }
 

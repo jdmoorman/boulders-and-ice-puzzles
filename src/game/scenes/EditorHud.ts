@@ -5,6 +5,7 @@ import { AUTOTILE_SETS, ISOLATED_FRAME, SURROUNDED_FRAME, autotileBase } from '.
 import { EditorTool } from '../editor/EditorLevel';
 import { Editor, EDITOR_EVENTS, PALETTE } from './Editor';
 import type { AnalysisProgress } from '../editor/EditorAnalysis';
+import type { EditorSettings } from '../editor/EditorSettings';
 
 const BAR_COLOR = 0x24303f;
 const SELECTED_STROKE = 0xf2c230;
@@ -12,6 +13,18 @@ const MESSAGE_MS = 3000;
 const PALETTE_BUTTON_SIZE = 64;
 const PALETTE_STEP = 84;
 const PROGRESS_WIDTH = 200;
+const OPTIONS_WIDTH = 600;
+const OPTION_ROW_HEIGHT = 90;
+const CHECKBOX_SIZE = 36;
+
+//  The on/off settings in the Options popup, in order
+const OPTIONS: readonly { key: keyof EditorSettings, label: string, description: string }[] = [
+    {
+        key: 'freeSnowWalking',
+        label: 'Free walking on snow',
+        description: "Analysis doesn't count steps from snow to snow."
+    }
+];
 
 const setOf = (tile: TileIndex) => AUTOTILE_SETS.findIndex(set => set.tiles.includes(tile));
 const WALL_ICON: ButtonIcon = { key: AUTOTILE_SETS[setOf(TileIndex.Wall)].texture, frame: ISOLATED_FRAME };
@@ -43,6 +56,10 @@ export class EditorHud extends Scene
     private progressTrack: GameObjects.Rectangle;
     private progressFill: GameObjects.Rectangle;
     private progressText: GameObjects.Text;
+    //  The Options popup's objects while it's open, and a function that shows its checkboxes'
+    //  current state
+    private optionsPopup: GameObjects.GameObject[] | null = null;
+    private showOptionValues: (() => void) | null = null;
 
     constructor ()
     {
@@ -54,6 +71,8 @@ export class EditorHud extends Scene
         this.editor = this.scene.get('Editor') as Editor;
         this.paletteButtons.clear();
         this.messageTimer = null;
+        this.optionsPopup = null;
+        this.showOptionValues = null;
 
         const { width, height } = this.scale;
 
@@ -65,6 +84,7 @@ export class EditorHud extends Scene
         addIconButton(this, 200, top, [{ key: 'icon-undo' }], () => this.editor.undo(), { ...size, width: 72 });
         addIconButton(this, 286, top, [{ key: 'icon-redo' }], () => this.editor.redo(), { ...size, width: 72 });
         this.analyzeButton = addButton(this, 440, top, 'Analyze', () => this.editor.toggleAnalysis(), { ...size, width: 160 });
+        addIconButton(this, 562, top, [{ key: 'icon-gear' }], () => this.openOptions(), { ...size, width: 72 });
         addButton(this, 674, top, 'Import', () => this.editor.importLevel(), { ...size, width: 140 });
         addButton(this, 822, top, 'Export', () => this.editor.exportLevel(), { ...size, width: 140 });
         addButton(this, 958, top, 'Play', () => this.editor.play(), { ...size, width: 116 });
@@ -99,18 +119,91 @@ export class EditorHud extends Scene
         const onTool = (tool: EditorTool) => this.highlightTool(tool);
         const onMessage = (text: string) => this.showMessage(text);
         const onAnalysis = () => this.showAnalysis();
+        const onSettings = () => this.showOptionValues?.();
         const listeners: [string, (...args: never[]) => void][] = [
             [EDITOR_EVENTS.TOOL, onTool],
             [EDITOR_EVENTS.MESSAGE, onMessage],
             [EDITOR_EVENTS.ANALYSIS, onAnalysis],
-            [EDITOR_EVENTS.PROGRESS, onAnalysis]
+            [EDITOR_EVENTS.PROGRESS, onAnalysis],
+            [EDITOR_EVENTS.SETTINGS, onSettings]
         ];
         listeners.forEach(([event, fn]) => this.editor.events.on(event, fn));
         this.events.once(Scenes.Events.SHUTDOWN, () =>
         {
             listeners.forEach(([event, fn]) => this.editor.events.off(event, fn));
         });
+        this.input.keyboard?.on('keydown-ESC', () => this.closeOptions());
         this.showAnalysis();
+    }
+
+    //  Opens the Options popup over everything, with a checkbox per setting. Clicking outside the
+    //  panel, the Close button or Escape closes it. The editor ignores input while it's open.
+    private openOptions ()
+    {
+        if (this.optionsPopup)
+        {
+            return;
+        }
+        this.editor.inputLocked = true;
+        const { width, height } = this.scale;
+        const panelHeight = 160 + OPTIONS.length * OPTION_ROW_HEIGHT;
+        const left = (width - OPTIONS_WIDTH) / 2;
+        const top = (height - panelHeight) / 2;
+        const objects: GameObjects.GameObject[] = [];
+
+        //  Covers the editor and the HUD, so only the popup can be clicked
+        objects.push(this.add.rectangle(0, 0, width, height, 0x000000, 0.55)
+            .setOrigin(0)
+            .setInteractive()
+            .on('pointerup', () => this.closeOptions()));
+        objects.push(this.add.rectangle(left, top, OPTIONS_WIDTH, panelHeight, BAR_COLOR)
+            .setOrigin(0)
+            .setStrokeStyle(3, 0x000000)
+            .setInteractive());
+        objects.push(this.add.text(width / 2, top + 40, 'Editor Options', { ...TEXT_STYLE, fontSize: 32 })
+            .setOrigin(0.5));
+
+        const updates = OPTIONS.map(({ key, label, description }, i) =>
+        {
+            const y = top + 90 + i * OPTION_ROW_HEIGHT;
+            const toggle = () => this.editor.changeSettings({ [key]: !this.editor.editorSettings[key] });
+
+            const box = this.add.rectangle(left + 32, y, CHECKBOX_SIZE, CHECKBOX_SIZE, 0x000000, 0.5)
+                .setOrigin(0)
+                .setStrokeStyle(3, 0x000000)
+                .setInteractive({ useHandCursor: true })
+                .on('pointerup', toggle);
+            const check = this.add.rectangle(left + 32 + CHECKBOX_SIZE / 2, y + CHECKBOX_SIZE / 2,
+                CHECKBOX_SIZE - 14, CHECKBOX_SIZE - 14, SELECTED_STROKE);
+            const textX = left + 32 + CHECKBOX_SIZE + 20;
+            const title = this.add.text(textX, y + CHECKBOX_SIZE / 2, label, { ...TEXT_STYLE, fontSize: 24, strokeThickness: 5 })
+                .setOrigin(0, 0.5)
+                .setInteractive({ useHandCursor: true })
+                .on('pointerup', toggle);
+            const note = this.add.text(textX, y + CHECKBOX_SIZE + 8, description,
+                { ...TEXT_STYLE, fontSize: 16, strokeThickness: 4, align: 'left' });
+            objects.push(box, check, title, note);
+
+            return () => check.setVisible(this.editor.editorSettings[key]);
+        });
+        this.showOptionValues = () => updates.forEach(update => update());
+        this.showOptionValues();
+
+        objects.push(addButton(this, width / 2, top + panelHeight - 44, 'Close', () => this.closeOptions(),
+            { width: 160, height: 52 }));
+        this.optionsPopup = objects;
+    }
+
+    private closeOptions ()
+    {
+        if (!this.optionsPopup)
+        {
+            return;
+        }
+        this.optionsPopup.forEach(object => object.destroy());
+        this.optionsPopup = null;
+        this.showOptionValues = null;
+        this.editor.inputLocked = false;
     }
 
     //  Shows whether analysis mode is on and how the search is going. The progress shows while

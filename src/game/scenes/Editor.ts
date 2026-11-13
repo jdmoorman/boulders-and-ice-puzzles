@@ -8,6 +8,7 @@ import { playerAnimKey } from '../playerAnimations';
 import type { GameData } from './Game';
 import { AnalysisProgress, EditorAnalysis } from '../editor/EditorAnalysis';
 import type { FoundTile } from '../editor/analysisShared';
+import { EditorSettings, loadEditorSettings, saveEditorSettings } from '../editor/EditorSettings';
 import { TEXT_STYLE } from '../ui/Button';
 
 //  Everything the editor keeps between visits (e.g. while playtesting), stored in the registry
@@ -57,7 +58,9 @@ export const EDITOR_EVENTS = {
     //  Analysis mode turned on or off (boolean)
     ANALYSIS: 'editor-analysis',
     //  The reachability search's progress changed (AnalysisProgress | null)
-    PROGRESS: 'editor-progress'
+    PROGRESS: 'editor-progress',
+    //  The editor's options changed (EditorSettings)
+    SETTINGS: 'editor-settings'
 } as const;
 
 const PATH_COLOR = 0x1f5fa8;
@@ -90,6 +93,9 @@ export class Editor extends Scene
     private dimGraphics: GameObjects.Graphics;
     private pathGraphics: GameObjects.Graphics;
     private hoverCell: GridPoint | null = null;
+    private settings: EditorSettings;
+    //  Set by the HUD while a popup is open, so keys, clicks and scrolling don't edit the canvas
+    inputLocked = false;
 
     constructor ()
     {
@@ -111,6 +117,11 @@ export class Editor extends Scene
         return this.analysis.progress;
     }
 
+    get editorSettings (): Readonly<EditorSettings>
+    {
+        return this.settings;
+    }
+
     create ()
     {
         this.tallImages.clear();
@@ -122,6 +133,8 @@ export class Editor extends Scene
         this.skipSave = false;
         this.analyzing = loadAnalyzeSetting();
         this.hoverCell = null;
+        this.settings = loadEditorSettings();
+        this.inputLocked = false;
 
         const camera = this.cameras.main;
         camera.setBackgroundColor(0x141a22);
@@ -139,7 +152,7 @@ export class Editor extends Scene
         this.setupInput();
 
         this.analysis = new EditorAnalysis(tiles => this.onAnalysisUpdate(tiles));
-        this.analysis.restart(this.state.level, 0);
+        this.analysis.restart(this.state.level, this.settings.freeSnowWalking, 0);
 
         //  Keep the editor's state for next time, and take the HUD down with the editor
         this.events.once(Scenes.Events.SHUTDOWN, () =>
@@ -175,6 +188,19 @@ export class Editor extends Scene
         this.dimGraphics.setVisible(this.analyzing);
         this.showRoute();
         this.events.emit(EDITOR_EVENTS.ANALYSIS, this.analyzing);
+    }
+
+    //  Changes some of the editor's options and remembers them
+    changeSettings (changes: Partial<EditorSettings>)
+    {
+        const before = this.settings.freeSnowWalking;
+        this.settings = { ...this.settings, ...changes };
+        saveEditorSettings(this.settings);
+        if (this.settings.freeSnowWalking !== before)
+        {
+            this.analysis.restart(this.state.level, this.settings.freeSnowWalking, 0);
+        }
+        this.events.emit(EDITOR_EVENTS.SETTINGS, this.settings);
     }
 
     undo ()
@@ -491,7 +517,7 @@ export class Editor extends Scene
         if (changed.length > 0)
         {
             this.drawPlayerAndGoal();
-            this.analysis.restart(this.state.level);
+            this.analysis.restart(this.state.level, this.settings.freeSnowWalking);
         }
     }
 
@@ -615,6 +641,10 @@ export class Editor extends Scene
 
         this.input.on(Input.Events.POINTER_DOWN, (pointer: Input.Pointer) =>
         {
+            if (this.inputLocked)
+            {
+                return;
+            }
             const tool: EditorTool | null = pointer.rightButtonDown() ? 'erase'
                 : pointer.leftButtonDown() ? this.state.tool : null;
             if (!tool)
@@ -656,6 +686,10 @@ export class Editor extends Scene
         this.input.on(Input.Events.POINTER_WHEEL,
             (pointer: Input.Pointer, _over: unknown, dx: number, dy: number) =>
             {
+                if (this.inputLocked)
+                {
+                    return;
+                }
                 const event = pointer.event as WheelEvent;
                 if (event.ctrlKey || event.metaKey)
                 {
@@ -673,14 +707,25 @@ export class Editor extends Scene
         const keyboard = this.input.keyboard;
         if (keyboard)
         {
+            //  Adds a key handler that's ignored while a popup is open
+            const onKey = (key: string, handler: (event: KeyboardEvent) => void) =>
+            {
+                keyboard.on(`keydown-${key}`, (event: KeyboardEvent) =>
+                {
+                    if (!this.inputLocked)
+                    {
+                        handler(event);
+                    }
+                });
+            };
             const numberKeys = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX'];
             PALETTE.forEach((tool, i) =>
             {
-                keyboard.on(`keydown-${numberKeys[i]}`, () => this.selectTool(tool));
+                onKey(numberKeys[i], () => this.selectTool(tool));
             });
 
             //  Ctrl/Cmd+Z undoes; Ctrl/Cmd+Shift+Z and Ctrl/Cmd+Y redo
-            keyboard.on('keydown-Z', (event: KeyboardEvent) =>
+            onKey('Z', (event: KeyboardEvent) =>
             {
                 if (event.ctrlKey || event.metaKey)
                 {
@@ -695,8 +740,8 @@ export class Editor extends Scene
                     }
                 }
             });
-            keyboard.on('keydown-A', () => this.toggleAnalysis());
-            keyboard.on('keydown-Y', (event: KeyboardEvent) =>
+            onKey('A', () => this.toggleAnalysis());
+            onKey('Y', (event: KeyboardEvent) =>
             {
                 if (event.ctrlKey || event.metaKey)
                 {
