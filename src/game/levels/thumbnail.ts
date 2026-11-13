@@ -6,6 +6,8 @@ import { AUTOTILE_SETS, autotileFrame, displayTileIndex, isTallSet } from './aut
 import { PLAYER_FRAME_HEIGHT, PLAYER_FRAME_WIDTH } from '../playerAnimations';
 import { PLAYER_SPRITE } from '../settings';
 import { PLATE_ART_TILE_SIZE, PLATE_DROP, PLATE_FRAME_HEIGHT, PLATE_FRAME_WIDTH, PLATE_UP_FRAME } from '../plates';
+import { DOOR_CLOSED, DOOR_FRAME_HEIGHT, DOOR_FRAME_WIDTH, DOOR_OPEN } from '../doors';
+import { doorsOpen } from '../movement/Movement';
 
 //  Pixels per tile of the art itself; thumbnails with smaller tiles shrink it
 const ART_TILE_SIZE = 16;
@@ -33,7 +35,7 @@ export function levelThumbnail (scene: Scene, level: LevelInfo, maxWidth: number
     const textureFrame = (textureKey: string, frame?: string | number) => scene.textures.get(textureKey).get(frame);
     const source = (textureKey: string) => scene.textures.get(textureKey).getSourceImage() as Source;
 
-    //  Tall walls and the player reach above their tiles; leave room for them above the top row.
+    //  Tall walls, doors and the player reach above their tiles; leave room for them above the top row.
     //  Measured in tiles, since the tile size depends on it.
     const wallRise = Math.max(0, ...tallSets.map(set =>
     {
@@ -42,7 +44,8 @@ export function levelThumbnail (scene: Scene, level: LevelInfo, maxWidth: number
     }));
     const playerHeightTiles = PLAYER_FRAME_HEIGHT * PLAYER_SPRITE.pixelScale / TILE_SIZE;
     const playerFeetTiles = PLAYER_SPRITE.feetAboveTileBottom / TILE_SIZE;
-    const rise = Math.max(wallRise, playerHeightTiles + playerFeetTiles - 1, 0);
+    const doorRise = DOOR_FRAME_HEIGHT / DOOR_FRAME_WIDTH - 1;
+    const rise = Math.max(wallRise, playerHeightTiles + playerFeetTiles - 1, data.doors.length > 0 ? doorRise : 0, 0);
 
     //  Whole pixels per tile, so every tile is the same size
     const T = Math.max(1, Math.floor(Math.min(maxWidth / data.width, maxHeight / (data.height + rise))));
@@ -91,6 +94,10 @@ export function levelThumbnail (scene: Scene, level: LevelInfo, maxWidth: number
 
     //  Then row by row, so things further down cover the tall walls behind them
     const boulders = new Set(data.boulders.map(b => `${b.x},${b.y}`));
+    //  Doors as they start: closed unless the level has no plates
+    const doors = new Set(data.doors.map(d => `${d.x},${d.y}`));
+    const door = doorsOpen(data, [data.player, ...data.boulders]) ? DOOR_OPEN : DOOR_CLOSED;
+    const doorHeight = T * DOOR_FRAME_HEIGHT / DOOR_FRAME_WIDTH;
     tiles.forEach((row, y) =>
     {
         const bottom = top + (y + 1) * T;
@@ -103,6 +110,10 @@ export function levelThumbnail (scene: Scene, level: LevelInfo, maxWidth: number
                 const f = textureFrame(set.texture, frame);
                 const h = T * f.cutHeight / f.cutWidth;
                 drawFrame(set.texture, frame, x * T, bottom - h, T, h);
+            }
+            if (doors.has(`${x},${y}`))
+            {
+                drawFrame(door.key, door.frame, x * T, bottom - doorHeight, T, doorHeight);
             }
             if (boulders.has(`${x},${y}`))
             {

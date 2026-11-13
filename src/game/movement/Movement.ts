@@ -36,12 +36,26 @@ function isGoal (data: LevelData, p: GridPoint): boolean
     return data.goal !== null && data.goal.x === p.x && data.goal.y === p.y;
 }
 
-//  True if nothing can enter this cell: off the map, void, wall, the exit, or a boulder.
-//  (The exit is handled as a special case by resolveMove.)
-export function isBlocked (data: LevelData, p: GridPoint): boolean
+const samePoint = (a: GridPoint, b: GridPoint) => a.x === b.x && a.y === b.y;
+
+//  Whether the doors are open: every pressure plate has the player or a boulder on it. Only the
+//  `resting` positions count, so something that has just started moving no longer holds its
+//  plate down. With no plates the doors are always open.
+export function doorsOpen (data: LevelData, resting: readonly GridPoint[]): boolean
+{
+    return data.plates.every(plate => resting.some(p => samePoint(p, plate)));
+}
+
+//  True if nothing can enter this cell: off the map, void, wall, the exit, a boulder, or a
+//  closed door. (The exit is handled as a special case by resolveMove.)
+export function isBlocked (data: LevelData, p: GridPoint, open: boolean): boolean
 {
     const tile = tileAt(data, p);
     if (tile === TileIndex.Void || tile === TileIndex.Wall || isGoal(data, p))
+    {
+        return true;
+    }
+    if (!open && data.doors.some(d => samePoint(d, p)))
     {
         return true;
     }
@@ -52,7 +66,8 @@ export function isBlocked (data: LevelData, p: GridPoint): boolean
 //  Returns the tiles passed through, in order, when moving from `from` in `dir`.
 //  An empty array means the move is blocked. After the first step, the mover keeps
 //  sliding while on ice, stopping before a blocked tile or on the first non-ice tile.
-export function computeMove (data: LevelData, from: GridPoint, dir: Direction): GridPoint[]
+//  `open` says whether the doors are open (see doorsOpen).
+export function computeMove (data: LevelData, from: GridPoint, dir: Direction, open: boolean): GridPoint[]
 {
     const path: GridPoint[] = [];
     let current = from;
@@ -60,7 +75,7 @@ export function computeMove (data: LevelData, from: GridPoint, dir: Direction): 
     while (true)
     {
         const next = step(current, dir);
-        if (isBlocked(data, next))
+        if (isBlocked(data, next, open))
         {
             break;
         }
@@ -90,16 +105,19 @@ export type MoveResult =
 //  - A move that the exit stops (a direct step, or a slide on ice) is an exit attempt.
 //  - Otherwise the player walks, sliding on ice. A sliding player stops in front of a
 //    boulder rather than pushing it.
+//  - Closed doors block like walls. Whatever moves (the player, or the pushed boulder) leaves
+//    its plate as it starts, so a door it was holding open is closed for that move.
 export function resolveMove (data: LevelData, from: GridPoint, dir: Direction): MoveResult
 {
     const boulderIndex = boulderAt(data, step(from, dir));
     if (boulderIndex >= 0)
     {
-        const path = computeMove(data, data.boulders[boulderIndex], dir);
+        const resting = [from, ...data.boulders.filter((_b, i) => i !== boulderIndex)];
+        const path = computeMove(data, data.boulders[boulderIndex], dir, doorsOpen(data, resting));
         return path.length > 0 ? { kind: 'push', boulderIndex, path } : { kind: 'blocked' };
     }
 
-    const path = computeMove(data, from, dir);
+    const path = computeMove(data, from, dir, doorsOpen(data, data.boulders));
     const end = path.length > 0 ? path[path.length - 1] : from;
 
     //  The move stopped because it was blocked (not because it slid onto non-ice)

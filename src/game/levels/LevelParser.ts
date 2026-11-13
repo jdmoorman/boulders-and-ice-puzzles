@@ -16,8 +16,9 @@ export interface LevelData
     //  null for a level with no exit, e.g. an editor playtest before one is placed
     goal: GridPoint | null;
     boulders: GridPoint[];
-    //  Pressure plates
+    //  Pressure plates, and doors that are open while every plate is pressed
     plates: GridPoint[];
+    doors: GridPoint[];
 }
 
 export class LevelParseError extends Error
@@ -71,6 +72,7 @@ export function parseLevelDraft (text: string): LevelDraft
     const tiles: number[][] = [];
     const boulders: GridPoint[] = [];
     const plates: GridPoint[] = [];
+    const doors: GridPoint[] = [];
     let player: GridPoint | null = null;
     let goal: GridPoint | null = null;
 
@@ -120,10 +122,14 @@ export function parseLevelDraft (text: string): LevelDraft
             {
                 plates.push({ x, y });
             }
+            else if (entry.entity === 'door')
+            {
+                doors.push({ x, y });
+            }
         }
 
         tiles.push(row);
     });
 
-    return { width, height, tiles, player, goal, boulders, plates };
+    return { width, height, tiles, player, goal, boulders, plates, doors };
 }

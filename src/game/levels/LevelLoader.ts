@@ -5,6 +5,8 @@ import { PLAYER_FRAME_HEIGHT } from '../playerAnimations';
 import { PLAYER_SPRITE } from '../settings';
 import { AUTOTILE_SETS, AutotileSet, autotileFrame, autotileFrameSize, autotileLevel, isTallSet } from './autotile';
 import { Plate, PLATE_ART_TILE_SIZE, PLATE_DROP, PLATE_UP_FRAME } from '../plates';
+import { Door, DOOR_CLOSED, DOOR_FRAME_WIDTH, setDoorOpen } from '../doors';
+import { doorsOpen } from '../movement/Movement';
 
 export interface BuiltLevel
 {
@@ -15,6 +17,8 @@ export interface BuiltLevel
     boulders: GameObjects.Image[];
     //  In the same order as data.plates; all raised at the start
     plates: Plate[];
+    //  In the same order as data.doors
+    doors: Door[];
 }
 
 //  World position of a tile's center
@@ -74,6 +78,17 @@ export function addPlate (scene: Scene, p: GridPoint): GameObjects.Sprite
         .setDepth(GOAL_DEPTH);
 }
 
+//  Adds a closed door on tile p: standing on the bottom edge of its tile and rising over the tile
+//  above, depth-sorted by that bottom edge like a tall wall
+export function addDoor (scene: Scene, p: GridPoint): GameObjects.Sprite
+{
+    const bottom = (p.y + 1) * TILE_SIZE;
+    return scene.add.sprite(p.x * TILE_SIZE, bottom, DOOR_CLOSED.key, DOOR_CLOSED.frame)
+        .setOrigin(0, 1)
+        .setScale(TILE_SIZE / DOOR_FRAME_WIDTH)
+        .setDepth(bottom);
+}
+
 //  Adds a boulder image on tile p.
 export function addBoulder (scene: Scene, p: GridPoint): GameObjects.Image
 {
@@ -101,8 +116,8 @@ export function addPlayer (scene: Scene, p: GridPoint): GameObjects.Sprite
 }
 
 //  Builds a tilemap and entity sprites from parsed level data, and makes the camera follow the player.
-//  Requires the 'tiles' and 'goal' textures from generateTextures(), and the 'player' and plate
-//  spritesheets and 'boulder' image loaded in the Preloader.
+//  Requires the 'tiles' and 'goal' textures from generateTextures(), and the 'player', plate and
+//  door spritesheets and 'boulder' image loaded in the Preloader.
 export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
 {
     const map = scene.make.tilemap({
@@ -144,6 +159,14 @@ export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
     }
 
     const plates = data.plates.map(p => ({ position: p, sprite: addPlate(scene, p), pressed: false }));
+    //  Doors start closed unless nothing holds them shut (a level without plates)
+    const open = doorsOpen(data, [data.player, ...data.boulders]);
+    const doors = data.doors.map(p =>
+    {
+        const door: Door = { position: p, sprite: addDoor(scene, p), open: false };
+        setDoorOpen(door, open, false);
+        return door;
+    });
     const boulders = data.boulders.map(b => addBoulder(scene, b));
     const player = addPlayer(scene, data.player);
 
@@ -153,5 +176,5 @@ export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
     camera.setZoom(1);
     camera.startFollow(player, true);
 
-    return { data, map, layer, player, boulders, plates };
+    return { data, map, layer, player, boulders, plates, doors };
 }

@@ -1,7 +1,7 @@
 import { GridPoint, LevelData, LevelDraft } from '../levels/LevelParser';
 import { TileIndex } from '../levels/Tiles';
 
-export type EditorTool = 'wall' | 'snow' | 'ice' | 'exit' | 'player' | 'boulder' | 'plate' | 'erase';
+export type EditorTool = 'wall' | 'snow' | 'ice' | 'exit' | 'player' | 'boulder' | 'plate' | 'door' | 'erase';
 
 //  Default editing canvas size, in tiles. A level that doesn't fit with MARGIN tiles to spare
 //  gets a bigger canvas.
@@ -26,10 +26,11 @@ export interface EditorSnapshot
     goal: GridPoint | null;
     boulders: string[];
     plates: string[];
+    doors: string[];
 }
 
 //  The level being edited: a fixed-size square canvas of tiles plus the player, boulders,
-//  pressure plates and exit. Each cell holds at most one of those. Plain data, so it can be kept in the registry across playtests.
+//  pressure plates, doors and exit. Each cell holds at most one of those. Plain data, so it can be kept in the registry across playtests.
 export class EditorLevel
 {
     readonly size: number;
@@ -37,9 +38,10 @@ export class EditorLevel
     readonly tiles: number[][];
     player: GridPoint | null = null;
     goal: GridPoint | null = null;
-    //  Boulder and pressure plate positions as "x,y" keys
+    //  Boulder, pressure plate and door positions as "x,y" keys
     readonly boulders = new Set<string>();
     readonly plates = new Set<string>();
+    readonly doors = new Set<string>();
 
     constructor (size = EDITOR_SIZE)
     {
@@ -69,6 +71,10 @@ export class EditorLevel
         {
             level.plates.add(cellKey(p.x + ox, p.y + oy));
         }
+        for (const d of data.doors)
+        {
+            level.doors.add(cellKey(d.x + ox, d.y + oy));
+        }
         return level;
     }
 
@@ -97,6 +103,11 @@ export class EditorLevel
         return this.plates.has(cellKey(x, y));
     }
 
+    hasDoorAt (x: number, y: number): boolean
+    {
+        return this.doors.has(cellKey(x, y));
+    }
+
     snapshot (): EditorSnapshot
     {
         const tiles = new Int8Array(this.size * this.size);
@@ -106,7 +117,8 @@ export class EditorLevel
             player: this.player && { ...this.player },
             goal: this.goal && { ...this.goal },
             boulders: [...this.boulders],
-            plates: [...this.plates]
+            plates: [...this.plates],
+            doors: [...this.doors]
         };
     }
 
@@ -128,7 +140,7 @@ export class EditorLevel
             }
         }
 
-        for (const [now, then] of [[this.boulders, s.boulders], [this.plates, s.plates]] as const)
+        for (const [now, then] of [[this.boulders, s.boulders], [this.plates, s.plates], [this.doors, s.doors]] as const)
         {
             const restored = new Set(then);
             for (const k of new Set([...now, ...restored]))
@@ -207,6 +219,12 @@ export class EditorLevel
                 this.plates.add(cellKey(x, y));
                 break;
 
+            case 'door':
+                this.makeGround(x, y);
+                this.clearEntity(x, y);
+                this.doors.add(cellKey(x, y));
+                break;
+
             case 'erase':
                 this.setTile(x, y, TileIndex.Void);
                 break;
@@ -246,7 +264,8 @@ export class EditorLevel
             player: { ...this.player },
             goal: this.goal && { ...this.goal },
             boulders: [...this.boulders].map(pointOfKey),
-            plates: [...this.plates].map(pointOfKey)
+            plates: [...this.plates].map(pointOfKey),
+            doors: [...this.doors].map(pointOfKey)
         };
     }
 
@@ -304,6 +323,10 @@ export class EditorLevel
         {
             return onIce ? 'O' : 'o';
         }
+        if (this.hasDoorAt(x, y))
+        {
+            return onIce ? 'D' : 'd';
+        }
         switch (tile)
         {
             case TileIndex.Wall: return '#';
@@ -313,7 +336,7 @@ export class EditorLevel
         }
     }
 
-    //  Sets a tile. The player, boulders, plates and exit stand only on snow or ice, so any on a cell
+    //  Sets a tile. The player, boulders, plates, doors and exit stand only on snow or ice, so any on a cell
     //  that becomes something else are removed.
     private setTile (x: number, y: number, tile: TileIndex)
     {
@@ -333,7 +356,7 @@ export class EditorLevel
         }
     }
 
-    //  Removes the player, a boulder, a plate or the exit from a cell
+    //  Removes the player, a boulder, a plate, a door or the exit from a cell
     private clearEntity (x: number, y: number)
     {
         if (this.isPlayerAt(x, y))
@@ -346,11 +369,12 @@ export class EditorLevel
         }
         this.boulders.delete(cellKey(x, y));
         this.plates.delete(cellKey(x, y));
+        this.doors.delete(cellKey(x, y));
     }
 
     //  A string describing everything in a cell, for change detection
     private cellState (x: number, y: number): string
     {
-        return `${this.tiles[y][x]}|${this.isPlayerAt(x, y)}|${this.hasBoulderAt(x, y)}|${this.isGoalAt(x, y)}|${this.hasPlateAt(x, y)}`;
+        return `${this.tiles[y][x]}|${this.isPlayerAt(x, y)}|${this.hasBoulderAt(x, y)}|${this.isGoalAt(x, y)}|${this.hasPlateAt(x, y)}|${this.hasDoorAt(x, y)}`;
     }
 }

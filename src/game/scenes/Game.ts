@@ -3,11 +3,12 @@ import { parseLevel, GridPoint } from '../levels/LevelParser';
 import { buildLevel, BuiltLevel, tileCenter, ySortDepth } from '../levels/LevelLoader';
 import { LEVELS, isLastInPack } from '../levels/levelList';
 import { markCompleted } from '../progress';
-import { resolveMove, Direction } from '../movement/Movement';
+import { doorsOpen, resolveMove, Direction } from '../movement/Movement';
 import { MOVEMENT, PLATES } from '../settings';
 import { playerAnimKey, PlayerAnimKind } from '../playerAnimations';
 import { LevelCompleteData } from './LevelComplete';
 import { updatePlates } from '../plates';
+import { setDoorOpen } from '../doors';
 import { PauseMenuData } from './PauseMenu';
 
 const DIRECTIONS: readonly Direction[] = ['up', 'down', 'left', 'right'];
@@ -203,18 +204,25 @@ export class Game extends Scene
         });
     }
 
-    //  Presses the pressure plates the player and boulders rest on and releases the others.
-    //  `mover` is the position (this.playerPos or one of the boulders) of something that's
-    //  moving, and `arriving` where it will stop: its old plate releases as it leaves, and a
-    //  plate it's heading for presses before it gets there.
+    //  Presses the pressure plates the player and boulders rest on and releases the others, then
+    //  opens the doors if every plate is pressed and closes them if not. `mover` is the position
+    //  (this.playerPos or one of the boulders) of something that's moving, and `arriving` where
+    //  it will stop: its old plate releases as it leaves, and a plate it's heading for presses
+    //  before it gets there. A door doesn't close on anything in its doorway, including a mover
+    //  just leaving it; it closes once that's gone.
     private updatePlates (mover?: GridPoint, arriving?: GridPoint)
     {
-        const occupied = [this.playerPos, ...this.level.data.boulders].filter(p => p !== mover);
-        if (arriving)
+        const others = [this.playerPos, ...this.level.data.boulders].filter(p => p !== mover);
+        const resting = arriving ? [...others, arriving] : others;
+        updatePlates(this.level.plates, resting);
+
+        const open = doorsOpen(this.level.data, resting);
+        const inDoorways = mover && !arriving ? [...resting, mover] : resting;
+        for (const door of this.level.doors)
         {
-            occupied.push(arriving);
+            const { x, y } = door.position;
+            setDoorOpen(door, open || inDoorways.some(p => p.x === x && p.y === y));
         }
-        updatePlates(this.level.plates, occupied);
     }
 
     //  Tweens a sprite along a straight path from `from` (its logical position, this.playerPos or

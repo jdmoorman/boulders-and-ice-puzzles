@@ -7,6 +7,7 @@ import { Editor, EDITOR_EVENTS, PALETTE } from './Editor';
 import type { AnalysisProgress } from '../editor/EditorAnalysis';
 import type { EditorSettings } from '../editor/EditorSettings';
 import { PLATE_UP_FRAME } from '../plates';
+import { DOOR_CLOSED } from '../doors';
 
 const BAR_COLOR = 0x24303f;
 const SELECTED_STROKE = 0xf2c230;
@@ -41,6 +42,7 @@ const PALETTE_ICONS: Readonly<Record<EditorTool, readonly ButtonIcon[]>> = {
     player: [{ key: 'player', frame: 'palette' }],
     boulder: [{ key: 'boulder' }],
     plate: [SNOW_ICON, { key: 'plate-press', frame: PLATE_UP_FRAME }],
+    door: [SNOW_ICON, DOOR_CLOSED],
     erase: []
 };
 
@@ -91,7 +93,7 @@ export class EditorHud extends Scene
         addButton(this, 822, top, 'Export', () => this.editor.exportLevel(), { ...size, width: 140 });
         addButton(this, 958, top, 'Play', () => this.editor.play(), { ...size, width: 116 });
 
-        //  Bottom bar: the palette (keys 1-7)
+        //  Bottom bar: the palette (keys 1-8)
         this.add.rectangle(0, height - 80, width, 80, BAR_COLOR, 0.92).setOrigin(0).setInteractive();
         const paletteSize = { width: PALETTE_BUTTON_SIZE, height: PALETTE_BUTTON_SIZE };
         PALETTE.forEach((tool, i) =>
