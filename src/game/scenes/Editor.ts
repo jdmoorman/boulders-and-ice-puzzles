@@ -6,6 +6,9 @@ import { AUTOTILE_SETS, AutotileSet, displayTileIndex, isTallSet } from '../leve
 import { addBoulder, addPlayer, addTallTile, tileCenter } from '../levels/LevelLoader';
 import { playerAnimKey } from '../playerAnimations';
 import type { GameData } from './Game';
+import { AnalysisProgress, EditorAnalysis } from '../editor/EditorAnalysis';
+import type { FoundTile } from '../editor/analysisShared';
+import { TEXT_STYLE } from '../ui/Button';
 
 //  Everything the editor keeps between visits (e.g. while playtesting), stored in the registry
 interface EditorState
@@ -50,8 +53,15 @@ const DRAG_TOOLS: ReadonlySet<EditorTool> = new Set<EditorTool>(['wall', 'snow',
 //  Events emitted on this scene's event emitter for the HUD
 export const EDITOR_EVENTS = {
     TOOL: 'editor-tool',
-    MESSAGE: 'editor-message'
+    MESSAGE: 'editor-message',
+    //  Analysis mode turned on or off (boolean)
+    ANALYSIS: 'editor-analysis',
+    //  The reachability search's progress changed (AnalysisProgress | null)
+    PROGRESS: 'editor-progress'
 } as const;
+
+const PATH_COLOR = 0x1f5fa8;
+const BOULDER_PATH_COLOR = 0xb85a10;
 
 //  Level editor: the canvas, mouse painting, panning and zooming. The palette and buttons are
 //  in the EditorHud scene, launched on top so they aren't affected by the camera.
@@ -72,6 +82,14 @@ export class Editor extends Scene
     private pending: EditorSnapshot | null = null;
     //  Set when the registry already holds the state to start from next time
     private skipSave = false;
+    //  The background reachability search, and analysis mode's overlay: move counts on reached
+    //  tiles, unreachable tiles dimmed, and the route to the hovered tile
+    private analysis: EditorAnalysis;
+    private analyzing = false;
+    private analysisOverlay: GameObjects.Container;
+    private dimGraphics: GameObjects.Graphics;
+    private pathGraphics: GameObjects.Graphics;
+    private hoverCell: GridPoint | null = null;
 
     constructor ()
     {
@@ -83,6 +101,16 @@ export class Editor extends Scene
         return this.state.tool;
     }
 
+    get isAnalyzing (): boolean
+    {
+        return this.analyzing;
+    }
+
+    get analysisProgress (): AnalysisProgress | null
+    {
+        return this.analysis.progress;
+    }
+
     create ()
     {
         this.tallImages.clear();
@@ -92,6 +120,8 @@ export class Editor extends Scene
         this.stroke = null;
         this.pending = null;
         this.skipSave = false;
+        this.analyzing = loadAnalyzeSetting();
+        this.hoverCell = null;
 
         const camera = this.cameras.main;
         camera.setBackgroundColor(0x141a22);
@@ -105,12 +135,17 @@ export class Editor extends Scene
 
         this.isTall = set => isTallSet(this, set);
         this.createCanvas();
+        this.createAnalysisOverlay();
         this.setupInput();
+
+        this.analysis = new EditorAnalysis(tiles => this.onAnalysisUpdate(tiles));
+        this.analysis.restart(this.state.level, 0);
 
         //  Keep the editor's state for next time, and take the HUD down with the editor
         this.events.once(Scenes.Events.SHUTDOWN, () =>
         {
             this.scene.stop('EditorHud');
+            this.analysis.destroy();
             if (this.skipSave)
             {
                 return;
@@ -128,6 +163,18 @@ export class Editor extends Scene
     {
         this.state.tool = tool;
         this.events.emit(EDITOR_EVENTS.TOOL, tool);
+    }
+
+    //  Turns analysis mode on or off: move counts on reachable tiles, unreachable ones shaded, and
+    //  the shortest route to the tile under the mouse. Editing still works while it's on.
+    toggleAnalysis ()
+    {
+        this.analyzing = !this.analyzing;
+        saveAnalyzeSetting(this.analyzing);
+        this.analysisOverlay.setVisible(this.analyzing);
+        this.dimGraphics.setVisible(this.analyzing);
+        this.showRoute();
+        this.events.emit(EDITOR_EVENTS.ANALYSIS, this.analyzing);
     }
 
     undo ()
@@ -445,6 +492,114 @@ export class Editor extends Scene
         if (changed.length > 0)
         {
             this.drawPlayerAndGoal();
+            this.analysis.restart(this.state.level);
+        }
+    }
+
+    private createAnalysisOverlay ()
+    {
+        //  Just above the terrain and exit ring, so walls, boulders and the player stand in front
+        //  of the shadow (they're y-sorted from depth TILE_SIZE / 2 up)
+        this.dimGraphics = this.add.graphics().setDepth(1).setVisible(this.analyzing);
+        this.analysisOverlay = this.add.container(0, 0)
+            .setDepth(OVERLAY_DEPTH + 2)
+            .setVisible(this.analyzing);
+        this.pathGraphics = this.add.graphics().setDepth(OVERLAY_DEPTH + 3);
+    }
+
+    //  Called when the search restarts, finds tiles or finishes
+    private onAnalysisUpdate (tiles: FoundTile[])
+    {
+        const { results, progress } = this.analysis;
+        if (results.size === 0)
+        {
+            //  A fresh search: clear the old move counts
+            this.analysisOverlay.removeAll(true);
+            this.dimGraphics.clear();
+        }
+
+        for (const tile of tiles)
+        {
+            const { x, y } = tileCenter(tile);
+            this.analysisOverlay.add(this.add.text(x, y, `${tile.moves.length}`, { ...TEXT_STYLE, fontSize: 22, strokeThickness: 5 })
+                .setOrigin(0.5));
+        }
+
+        //  Once the search is known to be complete, dim the ground it never reached
+        if (progress && !progress.running && progress.complete)
+        {
+            this.dimUnreached();
+        }
+
+        this.events.emit(EDITOR_EVENTS.PROGRESS, progress);
+        this.showRoute();
+    }
+
+    private dimUnreached ()
+    {
+        const { level } = this.state;
+        this.dimGraphics.clear().fillStyle(0x000000, 0.5);
+        level.tiles.forEach((row, y) => row.forEach((tile, x) =>
+        {
+            const ground = tile === TileIndex.Floor || tile === TileIndex.Ice || tile === TileIndex.Goal;
+            if (ground && !this.analysis.results.has(cellKey(x, y)))
+            {
+                this.dimGraphics.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            }
+        }));
+    }
+
+    //  In analysis mode, draws the shortest route to the hovered tile
+    private showRoute ()
+    {
+        const g = this.pathGraphics.clear();
+        if (!this.analyzing)
+        {
+            return;
+        }
+
+        const cell = this.hoverCell;
+        const moves = cell && this.analysis.results.get(cellKey(cell.x, cell.y));
+        if (cell && moves)
+        {
+            this.drawRoute(g, moves, cell);
+        }
+    }
+
+    //  Draws the route, cut off at the target if the last move slides through it rather than
+    //  stopping there
+    private drawRoute (g: GameObjects.Graphics, moves: string, target: GridPoint)
+    {
+        const segments = this.analysis.replay(moves);
+        //  The move that reaches a tile is always the player's (pushes don't move the player)
+        const last = segments[segments.length - 1];
+        if (last?.kind === 'player')
+        {
+            const i = last.cells.findIndex(p => p.x === target.x && p.y === target.y);
+            if (i >= 0 && i < last.cells.length - 1)
+            {
+                last.cells = last.cells.slice(0, i + 1);
+            }
+        }
+
+        const start = this.state.level.player;
+        if (start)
+        {
+            const { x, y } = tileCenter(start);
+            g.fillStyle(0xffffff, 0.9).fillCircle(x, y, 10);
+        }
+
+        for (const segment of segments)
+        {
+            const color = segment.kind === 'player' ? PATH_COLOR : BOULDER_PATH_COLOR;
+            const points = segment.cells.map(tileCenter);
+            g.lineStyle(6, color, 0.9).beginPath();
+            g.moveTo(points[0].x, points[0].y);
+            points.slice(1).forEach(p => g.lineTo(p.x, p.y));
+            g.strokePath();
+
+            const end = points[points.length - 1];
+            g.fillStyle(color, 1).fillCircle(end.x, end.y, 8);
         }
     }
 
@@ -491,7 +646,12 @@ export class Editor extends Scene
         const endStroke = () => { this.stroke = null; };
         this.input.on(Input.Events.POINTER_UP, endStroke);
         this.input.on(Input.Events.POINTER_UP_OUTSIDE, endStroke);
-        this.input.on(Input.Events.GAME_OUT, () => this.hover.setVisible(false));
+        this.input.on(Input.Events.GAME_OUT, () =>
+        {
+            this.hover.setVisible(false);
+            this.hoverCell = null;
+            this.showRoute();
+        });
 
         this.input.on(Input.Events.POINTER_WHEEL,
             (pointer: Input.Pointer, _over: unknown, dx: number, dy: number) =>
@@ -535,6 +695,7 @@ export class Editor extends Scene
                     }
                 }
             });
+            keyboard.on('keydown-A', () => this.toggleAnalysis());
             keyboard.on('keydown-Y', (event: KeyboardEvent) =>
             {
                 if (event.ctrlKey || event.metaKey)
@@ -569,6 +730,39 @@ export class Editor extends Scene
     {
         const inside = this.state.level.inBounds(cell.x, cell.y);
         this.hover.setVisible(inside).setPosition(cell.x * TILE_SIZE, cell.y * TILE_SIZE);
+        if (this.hoverCell?.x !== cell.x || this.hoverCell?.y !== cell.y)
+        {
+            this.hoverCell = cell;
+            this.showRoute();
+        }
+    }
+}
+
+//  Whether analysis mode is on, remembered in localStorage across visits and reloads. On unless
+//  the user has turned it off. Storage can be unavailable (private windows, blocked site data).
+const ANALYZE_KEY = 'bouldersAndIce.editorAnalyze';
+
+function loadAnalyzeSetting (): boolean
+{
+    try
+    {
+        return localStorage.getItem(ANALYZE_KEY) !== 'false';
+    }
+    catch
+    {
+        return true;
+    }
+}
+
+function saveAnalyzeSetting (on: boolean): void
+{
+    try
+    {
+        localStorage.setItem(ANALYZE_KEY, String(on));
+    }
+    catch
+    {
+        //  Can't save; the setting lasts until the editor is left
     }
 }
 

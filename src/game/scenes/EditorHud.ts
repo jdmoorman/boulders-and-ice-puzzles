@@ -4,12 +4,14 @@ import { TileIndex } from '../levels/Tiles';
 import { AUTOTILE_SETS, ISOLATED_FRAME, SURROUNDED_FRAME, autotileBase } from '../levels/autotile';
 import { EditorTool } from '../editor/EditorLevel';
 import { Editor, EDITOR_EVENTS, PALETTE } from './Editor';
+import type { AnalysisProgress } from '../editor/EditorAnalysis';
 
 const BAR_COLOR = 0x24303f;
 const SELECTED_STROKE = 0xf2c230;
 const MESSAGE_MS = 3000;
 const PALETTE_BUTTON_SIZE = 64;
 const PALETTE_STEP = 84;
+const PROGRESS_WIDTH = 200;
 
 const setOf = (tile: TileIndex) => AUTOTILE_SETS.findIndex(set => set.tiles.includes(tile));
 const WALL_ICON: ButtonIcon = { key: AUTOTILE_SETS[setOf(TileIndex.Wall)].texture, frame: ISOLATED_FRAME };
@@ -36,6 +38,11 @@ export class EditorHud extends Scene
     private paletteButtons = new Map<EditorTool, GameObjects.Rectangle>();
     private messageText: GameObjects.Text;
     private messageTimer: Time.TimerEvent | null = null;
+    private analyzeButton: GameObjects.Rectangle;
+    //  The analysis search's progress, under the top bar
+    private progressTrack: GameObjects.Rectangle;
+    private progressFill: GameObjects.Rectangle;
+    private progressText: GameObjects.Text;
 
     constructor ()
     {
@@ -57,6 +64,7 @@ export class EditorHud extends Scene
         addButton(this, 80, top, 'Menu', () => this.editor.toMainMenu(), { ...size, width: 130 });
         addIconButton(this, 200, top, [{ key: 'icon-undo' }], () => this.editor.undo(), { ...size, width: 72 });
         addIconButton(this, 286, top, [{ key: 'icon-redo' }], () => this.editor.redo(), { ...size, width: 72 });
+        this.analyzeButton = addButton(this, 440, top, 'Analyze', () => this.editor.toggleAnalysis(), { ...size, width: 160 });
         addButton(this, 674, top, 'Import', () => this.editor.importLevel(), { ...size, width: 140 });
         addButton(this, 822, top, 'Export', () => this.editor.exportLevel(), { ...size, width: 140 });
         addButton(this, 958, top, 'Play', () => this.editor.play(), { ...size, width: 116 });
@@ -77,18 +85,56 @@ export class EditorHud extends Scene
         });
         this.highlightTool(this.editor.tool);
 
-        this.messageText = this.add.text(width / 2, 104, '', { ...TEXT_STYLE, fontSize: 24, strokeThickness: 5 })
+        //  Progress bar and text, under the top bar
+        this.progressTrack = this.add.rectangle(16, 80, PROGRESS_WIDTH, 12, 0x000000, 0.5)
+            .setOrigin(0)
+            .setStrokeStyle(2, 0x000000);
+        this.progressFill = this.add.rectangle(16, 80, PROGRESS_WIDTH, 12, SELECTED_STROKE).setOrigin(0);
+        this.progressText = this.add.text(16 + PROGRESS_WIDTH + 12, 86, '', { ...TEXT_STYLE, fontSize: 16, strokeThickness: 4 })
+            .setOrigin(0, 0.5);
+
+        this.messageText = this.add.text(width / 2, 124, '', { ...TEXT_STYLE, fontSize: 24, strokeThickness: 5 })
             .setOrigin(0.5);
 
         const onTool = (tool: EditorTool) => this.highlightTool(tool);
         const onMessage = (text: string) => this.showMessage(text);
-        this.editor.events.on(EDITOR_EVENTS.TOOL, onTool);
-        this.editor.events.on(EDITOR_EVENTS.MESSAGE, onMessage);
+        const onAnalysis = () => this.showAnalysis();
+        const listeners: [string, (...args: never[]) => void][] = [
+            [EDITOR_EVENTS.TOOL, onTool],
+            [EDITOR_EVENTS.MESSAGE, onMessage],
+            [EDITOR_EVENTS.ANALYSIS, onAnalysis],
+            [EDITOR_EVENTS.PROGRESS, onAnalysis]
+        ];
+        listeners.forEach(([event, fn]) => this.editor.events.on(event, fn));
         this.events.once(Scenes.Events.SHUTDOWN, () =>
         {
-            this.editor.events.off(EDITOR_EVENTS.TOOL, onTool);
-            this.editor.events.off(EDITOR_EVENTS.MESSAGE, onMessage);
+            listeners.forEach(([event, fn]) => this.editor.events.off(event, fn));
         });
+        this.showAnalysis();
+    }
+
+    //  Shows whether analysis mode is on and how the search is going. The progress shows while
+    //  the search runs, and always in analysis mode.
+    private showAnalysis ()
+    {
+        const analyzing = this.editor.isAnalyzing;
+        const progress = this.editor.analysisProgress;
+
+        this.analyzeButton.setStrokeStyle(analyzing ? 5 : 3, analyzing ? SELECTED_STROKE : 0x000000);
+
+        const showText = analyzing || (progress?.running ?? false);
+        const showBar = showText && progress !== null;
+        this.progressTrack.setVisible(showBar);
+        this.progressFill.setVisible(showBar);
+        this.progressText.setVisible(showText).setText(progressDescription(progress));
+
+        if (progress)
+        {
+            //  The total number of positions can't be known in advance, so the bar shows tiles
+            //  found out of the tiles that could possibly be reached
+            const fraction = !progress.running ? 1 : progress.possible > 0 ? progress.found / progress.possible : 0;
+            this.progressFill.setSize(PROGRESS_WIDTH * fraction, 12);
+        }
     }
 
     private highlightTool (selected: EditorTool)
@@ -112,4 +158,22 @@ export class EditorHud extends Scene
         this.messageTimer?.remove();
         this.messageTimer = this.time.delayedCall(MESSAGE_MS, () => this.messageText.setVisible(false));
     }
+}
+
+function progressDescription (progress: AnalysisProgress | null): string
+{
+    if (!progress)
+    {
+        return 'Place a player to analyze.';
+    }
+    const { found, possible, states, depth } = progress;
+    if (progress.running)
+    {
+        return `Analyzing... ${found}/${possible} tiles · ${states.toLocaleString()} positions · depth ${depth}`;
+    }
+    if (!progress.complete)
+    {
+        return `Stopped at ${states.toLocaleString()} positions; some tiles may be missing.`;
+    }
+    return `Analysis done: ${found} ${found === 1 ? 'tile' : 'tiles'} reachable.`;
 }

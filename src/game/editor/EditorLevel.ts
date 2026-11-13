@@ -1,4 +1,4 @@
-import { GridPoint, LevelDraft } from '../levels/LevelParser';
+import { GridPoint, LevelData, LevelDraft } from '../levels/LevelParser';
 import { TileIndex } from '../levels/Tiles';
 
 export type EditorTool = 'wall' | 'snow' | 'ice' | 'exit' | 'player' | 'boulder' | 'erase';
@@ -209,6 +209,27 @@ export class EditorLevel
     problems (): string[]
     {
         return this.player ? [] : ['Place a player to play.'];
+    }
+
+    //  A copy of the whole canvas as level data, in canvas coordinates, or null without a player
+    toLevelData (): LevelData | null
+    {
+        if (!this.player)
+        {
+            return null;
+        }
+        return {
+            width: this.size,
+            height: this.size,
+            tiles: this.tiles.map(row => [...row]),
+            player: { ...this.player },
+            goal: this.goal && { ...this.goal },
+            boulders: [...this.boulders].map(k =>
+            {
+                const [x, y] = k.split(',').map(Number);
+                return { x, y };
+            })
+        };
     }
 
     //  The level as text in the .txt level format, trimmed to the cells in use.
