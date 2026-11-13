@@ -4,7 +4,7 @@ import { buildLevel, BuiltLevel, tileCenter, ySortDepth } from '../levels/LevelL
 import { LEVELS, isLastInPack } from '../levels/levelList';
 import { markCompleted } from '../progress';
 import { resolveMove, Direction } from '../movement/Movement';
-import { MOVEMENT } from '../settings';
+import { MOVEMENT, PLATES } from '../settings';
 import { playerAnimKey, PlayerAnimKind } from '../playerAnimations';
 import { LevelCompleteData } from './LevelComplete';
 import { updatePlates } from '../plates';
@@ -140,11 +140,9 @@ export class Game extends Scene
                 this.playPlayerAnim('idle');
                 const i = move.boulderIndex;
                 const end = move.path[move.path.length - 1];
-                this.updatePlates(this.level.data.boulders[i]);
-                this.tweenAlong(this.level.boulders[i], move.path, () =>
+                this.tweenAlong(this.level.boulders[i], this.level.data.boulders[i], move.path, () =>
                 {
                     this.level.data.boulders[i] = { ...end };
-                    this.updatePlates();
                 });
                 break;
             }
@@ -198,30 +196,42 @@ export class Game extends Scene
         }
 
         const end = path[path.length - 1];
-        this.updatePlates(this.playerPos);
-        this.tweenAlong(this.level.player, path, () =>
+        this.tweenAlong(this.level.player, this.playerPos, path, () =>
         {
             this.playerPos = { ...end };
-            this.updatePlates();
             then?.();
         });
     }
 
     //  Presses the pressure plates the player and boulders rest on and releases the others.
-    //  `leaving` is the position (this.playerPos or one of the boulders) of something that has
-    //  just started moving, so its plate releases as it leaves rather than once it stops.
-    private updatePlates (leaving?: GridPoint)
+    //  `mover` is the position (this.playerPos or one of the boulders) of something that's
+    //  moving, and `arriving` where it will stop: its old plate releases as it leaves, and a
+    //  plate it's heading for presses before it gets there.
+    private updatePlates (mover?: GridPoint, arriving?: GridPoint)
     {
-        const occupied = [this.playerPos, ...this.level.data.boulders].filter(p => p !== leaving);
+        const occupied = [this.playerPos, ...this.level.data.boulders].filter(p => p !== mover);
+        if (arriving)
+        {
+            occupied.push(arriving);
+        }
         updatePlates(this.level.plates, occupied);
     }
 
-    //  Tweens a sprite along a straight path: the first tile is a step, the rest are a slide.
-    //  Input is ignored until it finishes; `onDone` then updates the logical position.
-    private tweenAlong (sprite: GameObjects.Image | GameObjects.Sprite, path: GridPoint[], onDone: () => void)
+    //  Tweens a sprite along a straight path from `from` (its logical position, this.playerPos or
+    //  one of the boulders): the first tile is a step, the rest are a slide. Input is ignored
+    //  until it finishes; `onDone` then updates the logical position. Pressure plates release as
+    //  it leaves and press PLATES.pressLeadMs before it stops on one.
+    private tweenAlong (
+        sprite: GameObjects.Image | GameObjects.Sprite, from: GridPoint, path: GridPoint[], onDone: () => void
+    )
     {
-        const target = tileCenter(path[path.length - 1]);
+        const end = path[path.length - 1];
+        const target = tileCenter(end);
         const duration = MOVEMENT.walkMsPerTile + (path.length - 1) * MOVEMENT.slideMsPerTile;
+
+        this.updatePlates(from);
+        //  The scene clock pauses with the scene, like the tween
+        this.time.delayedCall(Math.max(0, duration - PLATES.pressLeadMs), () => this.updatePlates(from, end));
 
         this.isMoving = true;
         this.tweens.add({

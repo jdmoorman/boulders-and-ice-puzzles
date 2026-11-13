@@ -6,6 +6,12 @@ export const MOVEMENT = {
     slideMsPerTile: 150
 };
 
+//  Pressure plates
+export const PLATES = {
+    //  How long (ms) before the player or a boulder comes to rest on a plate it starts to press
+    pressLeadMs: 100
+};
+
 //  Player sprite animation speed (frames per second). Standing is a single frame.
 export const PLAYER_ANIMATION = {
     walkFps: 6
