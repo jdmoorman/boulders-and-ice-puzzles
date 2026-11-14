@@ -6,6 +6,7 @@ import { PLAYER_SPRITE } from '../settings';
 import { AUTOTILE_SETS, AutotileSet, autotileFrame, autotileFrameSize, autotileLevel, isTallSet } from './autotile';
 import { Plate, PLATE_ART_TILE_SIZE, PLATE_DROP, PLATE_PRESSED, PLATE_UP_FRAME } from '../plates';
 import { Door, DOOR_CLOSED, DOOR_FRAME_WIDTH, setDoorOpen } from '../doors';
+import { Trap, TRAP_FRAME_SIZE, trapArmedFrame } from '../traps';
 import { doorsOpen } from '../movement/Movement';
 
 export interface BuiltLevel
@@ -19,6 +20,8 @@ export interface BuiltLevel
     plates: Plate[];
     //  In the same order as data.doors
     doors: Door[];
+    //  In the same order as data.traps
+    traps: Trap[];
 }
 
 //  World position of a tile's center
@@ -55,7 +58,7 @@ export function addTallTile (
     return image;
 }
 
-//  Depth of the exit and pressure plates: over the terrain but under everything that stands on tiles (y-sorted
+//  Depth of the exit, pressure plates and traps: over the terrain but under everything that stands on tiles (y-sorted
 //  objects start at TILE_SIZE / 2), so the player is drawn over it
 export const GOAL_DEPTH = 0.5;
 
@@ -75,6 +78,16 @@ export function addPlate (scene: Scene, p: GridPoint): GameObjects.Sprite
     return scene.add.sprite(x, (p.y + 1) * TILE_SIZE + PLATE_DROP, 'plate-press', PLATE_UP_FRAME)
         .setOrigin(0.5, 1)
         .setScale(TILE_SIZE / PLATE_ART_TILE_SIZE)
+        .setDepth(GOAL_DEPTH);
+}
+
+//  Adds a trap covering tile p, armed or not, drawn with the exit: over the terrain, under the
+//  player and boulders
+export function addTrap (scene: Scene, p: GridPoint, armed = false): GameObjects.Sprite
+{
+    return scene.add.sprite(p.x * TILE_SIZE, p.y * TILE_SIZE, 'trap', armed ? trapArmedFrame(scene) : 0)
+        .setOrigin(0)
+        .setScale(TILE_SIZE / TRAP_FRAME_SIZE)
         .setDepth(GOAL_DEPTH);
 }
 
@@ -116,9 +129,10 @@ export function addPlayer (scene: Scene, p: GridPoint): GameObjects.Sprite
 }
 
 //  Builds a tilemap and entity sprites from parsed level data, and makes the camera follow the player.
-//  Requires the 'tiles' and 'goal' textures from generateTextures(), and the 'player', plate and
-//  door spritesheets and 'boulder' image loaded in the Preloader.
-export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
+//  armedTraps: indices into data.traps of traps already armed (in a level picked up where it was left).
+//  Requires the 'tiles' and 'goal' textures from generateTextures(), and the 'player', plate,
+//  door and trap spritesheets and 'boulder' image loaded in the Preloader.
+export function buildLevel (scene: Scene, data: LevelData, armedTraps: readonly number[] = []): BuiltLevel
 {
     const map = scene.make.tilemap({
         //  Walls, snow and ice are drawn with the autotile frame that fits their neighbours;
@@ -178,6 +192,11 @@ export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
         setDoorOpen(door, open || occupied(p), false);
         return door;
     });
+    const traps = data.traps.map((p, i): Trap =>
+    {
+        const armed = armedTraps.includes(i);
+        return { position: p, sprite: addTrap(scene, p, armed), armed };
+    });
     const boulders = data.boulders.map(b => addBoulder(scene, b));
     const player = addPlayer(scene, data.player);
 
@@ -187,5 +206,5 @@ export function buildLevel (scene: Scene, data: LevelData): BuiltLevel
     camera.setZoom(1);
     camera.startFollow(player, true);
 
-    return { data, map, layer, player, boulders, plates, doors };
+    return { data, map, layer, player, boulders, plates, doors, traps };
 }

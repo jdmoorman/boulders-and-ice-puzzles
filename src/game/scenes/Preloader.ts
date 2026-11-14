@@ -4,6 +4,7 @@ import { generateTextures } from '../textures';
 import { LEVELS } from '../levels/levelList';
 import { createPlateAnimations, loadPlates } from '../plates';
 import { createDoorAnimations, loadDoors } from '../doors';
+import { createTrapAnimations, loadTraps } from '../traps';
 
 export class Preloader extends Scene
 {
@@ -44,6 +45,7 @@ export class Preloader extends Scene
         this.load.image('ice', 'buch_ice_muted.png');
         loadPlates(this);
         loadDoors(this);
+        loadTraps(this);
 
         for (const level of LEVELS)
         {
@@ -56,13 +58,14 @@ export class Preloader extends Scene
         //  When all the assets have loaded, it's often worth creating global objects here that the rest of the game can use.
         //  For example, you can define global animations here, so we can use them in other scenes.
         //  Keep the scaled-up pixel art sharp (only these textures; others still smooth)
-        for (const key of ['player', 'boulder', 'floor', 'plate-press', 'plate-unpress', 'door-open', 'door-close'])
+        for (const key of ['player', 'boulder', 'floor', 'plate-press', 'plate-unpress', 'door-open', 'door-close', 'trap'])
         {
             this.textures.get(key).setFilter(Textures.FilterMode.NEAREST);
         }
         createPlayerAnimations(this);
         createPlateAnimations(this);
         createDoorAnimations(this);
+        createTrapAnimations(this);
 
         generateTextures(this);
 

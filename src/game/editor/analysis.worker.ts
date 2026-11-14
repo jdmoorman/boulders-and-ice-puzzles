@@ -10,7 +10,10 @@ import { AnalysisMessage, AnalysisRequest, DIRECTION_LETTERS, FoundTile, MAX_STA
 //  interchangeable, so their cells are kept sorted). Moves follow the game's own rules via
 //  resolveMove. A tile counts as reached by the first move that takes the player onto or through
 //  it, so ice the player slides across counts too (an exit placed there would stop the slide).
-//  Reaching the exit is a final move that isn't explored further.
+//  Reaching the exit is a final move that isn't explored further. Which traps are armed is part of
+//  a position: the player or a boulder stopping on an unarmed trap arms it. The player stopping on
+//  an armed one restarts the level, so that move is a dead end; a boulder stopping on one falls in,
+//  leaving one boulder fewer and the trap unarmed.
 //
 //  Walking around on snow is trivial, so with freeSnowWalking set, steps from snow to snow are
 //  free; every other move costs 1. The search is a 0-1 breadth-first search: positions are
@@ -42,12 +45,13 @@ function analyze (level: LevelData, freeSnowWalking: boolean): void
     const isFreeSnow = (p: GridPoint) => freeSnowWalking && tiles[p.y][p.x] === TileIndex.Floor;
     const possible = possibleTiles(level);
 
-    //  Per position: the player's cell, its boulder cells (flat, boulderCount per position),
-    //  the position it was reached from, the move taken, its cost from the start, and whether its
-    //  cost is final
-    const boulderCount = level.boulders.length;
+    //  Per position: the player's cell, its boulder cells, the position it was reached from, the
+    //  move taken, its cost from the start, and whether its cost is final
     const players: number[] = [];
-    const boulders: number[] = [];
+    const boulders: number[][] = [];
+    //  Per position, one character per trap: '1' if armed
+    const armed: string[] = [];
+    const trapIndex = new Map(level.traps.map((t, i) => [cellOf(t), i]));
     const parents: number[] = [];
     const moves: number[] = [];
     const costs: number[] = [];
@@ -107,19 +111,17 @@ function analyze (level: LevelData, freeSnowWalking: boolean): void
     let current: number[] = [];
     let next: number[] = [];
 
-    const addState = (player: number, cells: number[], parent: number, move: number, cost: number) =>
+    const addState = (player: number, cells: number[], traps: string, parent: number, move: number, cost: number) =>
     {
-        const key = stateKey(player, cells);
+        const key = stateKey(player, cells) + traps;
         let id = ids.get(key);
         if (id === undefined)
         {
             id = players.length;
             ids.set(key, id);
             players.push(player);
-            for (const c of cells)
-            {
-                boulders.push(c);
-            }
+            boulders.push(cells);
+            armed.push(traps);
             parents.push(parent);
             moves.push(move);
             costs.push(cost);
@@ -150,7 +152,7 @@ function analyze (level: LevelData, freeSnowWalking: boolean): void
 
     //  The cost being explored
     let costOf = 0;
-    addState(cellOf(level.player), level.boulders.map(cellOf).sort((a, b) => a - b), -1, 0, 0);
+    addState(cellOf(level.player), level.boulders.map(cellOf).sort((a, b) => a - b), '0'.repeat(level.traps.length), -1, 0, 0);
 
     //  One LevelData reused for every position, with its boulders swapped in
     const data: LevelData = { ...level, boulders: [] };
@@ -192,9 +194,10 @@ function analyze (level: LevelData, freeSnowWalking: boolean): void
             }
 
             const player = pointOf(players[s]);
-            const cells = boulders.slice(s * boulderCount, (s + 1) * boulderCount);
+            const cells = boulders[s];
             data.boulders = cells.map(pointOf);
             const onFreeSnow = isFreeSnow(player);
+            const traps = armed[s];
 
             DIRECTIONS.forEach((dir, d) =>
             {
@@ -204,22 +207,46 @@ function analyze (level: LevelData, freeSnowWalking: boolean): void
                     case 'walk':
                     {
                         const end = result.path[result.path.length - 1];
+                        //  Stopping on a trap arms it, or restarts the level if it's armed
+                        const trap = trapIndex.get(cellOf(end));
+                        if (trap !== undefined && traps[trap] === '1')
+                        {
+                            break;
+                        }
+                        const after = trap === undefined ? traps : traps.slice(0, trap) + '1' + traps.slice(trap + 1);
                         if (onFreeSnow && result.path.length === 1 && isFreeSnow(end))
                         {
-                            addState(cellOf(end), cells, s, d, costOf);
+                            addState(cellOf(end), cells, after, s, d, costOf);
                             break;
                         }
                         //  Tiles slid through on the way; the end tile is reached by its new position
                         result.path.slice(0, -1).forEach(p => reach(cellOf(p), costOf + 1, s, dir));
-                        addState(cellOf(end), cells, s, d, costOf + 1);
+                        addState(cellOf(end), cells, after, s, d, costOf + 1);
                         break;
                     }
 
                     case 'push':
                     {
                         const moved = cells.slice();
-                        moved[result.boulderIndex] = cellOf(result.path[result.path.length - 1]);
-                        addState(players[s], moved.sort((a, b) => a - b), s, d, costOf + 1);
+                        const end = cellOf(result.path[result.path.length - 1]);
+                        const trap = trapIndex.get(end);
+                        let after = traps;
+                        if (trap === undefined)
+                        {
+                            moved[result.boulderIndex] = end;
+                        }
+                        else if (traps[trap] === '1')
+                        {
+                            //  The boulder falls in and the trap resets
+                            moved.splice(result.boulderIndex, 1);
+                            after = traps.slice(0, trap) + '0' + traps.slice(trap + 1);
+                        }
+                        else
+                        {
+                            moved[result.boulderIndex] = end;
+                            after = traps.slice(0, trap) + '1' + traps.slice(trap + 1);
+                        }
+                        addState(players[s], moved.sort((a, b) => a - b), after, s, d, costOf + 1);
                         break;
                     }
 

@@ -4,7 +4,7 @@ import { TileIndex } from '../levels/Tiles';
 //  'erase' clears a cell completely; 'erase-entity' removes only what stands on it (the player, a
 //  boulder, plate, door or the exit), leaving the snow or ice
 export type EditorTool =
-    'wall' | 'snow' | 'ice' | 'exit' | 'player' | 'boulder' | 'plate' | 'door' | 'erase' | 'erase-entity';
+    'wall' | 'snow' | 'ice' | 'exit' | 'player' | 'boulder' | 'plate' | 'door' | 'trap' | 'erase' | 'erase-entity';
 
 //  Default editing canvas size, in tiles. A level that doesn't fit with MARGIN tiles to spare
 //  gets a bigger canvas.
@@ -30,10 +30,11 @@ export interface EditorSnapshot
     boulders: string[];
     plates: string[];
     doors: string[];
+    traps: string[];
 }
 
 //  The level being edited: a fixed-size square canvas of tiles plus the player, boulders,
-//  pressure plates, doors and exit. Each cell holds at most one of those. Plain data, so it can be kept in the registry across playtests.
+//  pressure plates, doors, traps and exit. Each cell holds at most one of those. Plain data, so it can be kept in the registry across playtests.
 export class EditorLevel
 {
     readonly size: number;
@@ -41,10 +42,11 @@ export class EditorLevel
     readonly tiles: number[][];
     player: GridPoint | null = null;
     goal: GridPoint | null = null;
-    //  Boulder, pressure plate and door positions as "x,y" keys
+    //  Boulder, pressure plate, door and trap positions as "x,y" keys
     readonly boulders = new Set<string>();
     readonly plates = new Set<string>();
     readonly doors = new Set<string>();
+    readonly traps = new Set<string>();
 
     constructor (size = EDITOR_SIZE)
     {
@@ -77,6 +79,10 @@ export class EditorLevel
         for (const d of data.doors)
         {
             level.doors.add(cellKey(d.x + ox, d.y + oy));
+        }
+        for (const t of data.traps)
+        {
+            level.traps.add(cellKey(t.x + ox, t.y + oy));
         }
         return level;
     }
@@ -111,11 +117,16 @@ export class EditorLevel
         return this.doors.has(cellKey(x, y));
     }
 
-    //  Whether anything stands on the cell: the player, a boulder, plate, door or the exit
+    hasTrapAt (x: number, y: number): boolean
+    {
+        return this.traps.has(cellKey(x, y));
+    }
+
+    //  Whether anything stands on the cell: the player, a boulder, plate, door, trap or the exit
     hasEntityAt (x: number, y: number): boolean
     {
         return this.isPlayerAt(x, y) || this.isGoalAt(x, y) || this.hasBoulderAt(x, y)
-            || this.hasPlateAt(x, y) || this.hasDoorAt(x, y);
+            || this.hasPlateAt(x, y) || this.hasDoorAt(x, y) || this.hasTrapAt(x, y);
     }
 
     snapshot (): EditorSnapshot
@@ -128,7 +139,8 @@ export class EditorLevel
             goal: this.goal && { ...this.goal },
             boulders: [...this.boulders],
             plates: [...this.plates],
-            doors: [...this.doors]
+            doors: [...this.doors],
+            traps: [...this.traps]
         };
     }
 
@@ -150,7 +162,7 @@ export class EditorLevel
             }
         }
 
-        for (const [now, then] of [[this.boulders, s.boulders], [this.plates, s.plates], [this.doors, s.doors]] as const)
+        for (const [now, then] of [[this.boulders, s.boulders], [this.plates, s.plates], [this.doors, s.doors], [this.traps, s.traps]] as const)
         {
             const restored = new Set(then);
             for (const k of new Set([...now, ...restored]))
@@ -235,6 +247,13 @@ export class EditorLevel
                 this.doors.add(cellKey(x, y));
                 break;
 
+            case 'trap':
+                //  Traps only stand on snow
+                this.setTile(x, y, TileIndex.Floor);
+                this.clearEntity(x, y);
+                this.traps.add(cellKey(x, y));
+                break;
+
             case 'erase':
                 this.setTile(x, y, TileIndex.Void);
                 break;
@@ -279,7 +298,8 @@ export class EditorLevel
             goal: this.goal && { ...this.goal },
             boulders: [...this.boulders].map(pointOfKey),
             plates: [...this.plates].map(pointOfKey),
-            doors: [...this.doors].map(pointOfKey)
+            doors: [...this.doors].map(pointOfKey),
+            traps: [...this.traps].map(pointOfKey)
         };
     }
 
@@ -341,6 +361,10 @@ export class EditorLevel
         {
             return onIce ? 'D' : 'd';
         }
+        if (this.hasTrapAt(x, y))
+        {
+            return 't';
+        }
         switch (tile)
         {
             case TileIndex.Wall: return '#';
@@ -350,13 +374,18 @@ export class EditorLevel
         }
     }
 
-    //  Sets a tile. The player, boulders, plates, doors and exit stand only on snow or ice, so any on a cell
+    //  Sets a tile. The player, boulders, plates, doors, traps and exit stand only on snow or ice, so any on a cell
     //  that becomes something else are removed.
     private setTile (x: number, y: number, tile: TileIndex)
     {
         if (!isGround(tile))
         {
             this.clearEntity(x, y);
+        }
+        //  Traps stand only on snow
+        if (tile !== TileIndex.Floor)
+        {
+            this.traps.delete(cellKey(x, y));
         }
         this.tiles[y][x] = tile;
     }
@@ -370,7 +399,7 @@ export class EditorLevel
         }
     }
 
-    //  Removes the player, a boulder, a plate, a door or the exit from a cell
+    //  Removes the player, a boulder, a plate, a door, a trap or the exit from a cell
     private clearEntity (x: number, y: number)
     {
         if (this.isPlayerAt(x, y))
@@ -384,11 +413,12 @@ export class EditorLevel
         this.boulders.delete(cellKey(x, y));
         this.plates.delete(cellKey(x, y));
         this.doors.delete(cellKey(x, y));
+        this.traps.delete(cellKey(x, y));
     }
 
     //  A string describing everything in a cell, for change detection
     private cellState (x: number, y: number): string
     {
-        return `${this.tiles[y][x]}|${this.isPlayerAt(x, y)}|${this.hasBoulderAt(x, y)}|${this.isGoalAt(x, y)}|${this.hasPlateAt(x, y)}|${this.hasDoorAt(x, y)}`;
+        return `${this.tiles[y][x]}|${this.isPlayerAt(x, y)}|${this.hasBoulderAt(x, y)}|${this.isGoalAt(x, y)}|${this.hasPlateAt(x, y)}|${this.hasDoorAt(x, y)}|${this.hasTrapAt(x, y)}`;
     }
 }

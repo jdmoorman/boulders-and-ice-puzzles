@@ -15,8 +15,9 @@ export const PLAIN_TILE_COUNT = TileIndex.Wall + 1;
 export const TILE_SIZE = 64;
 
 //  Things that stand on a snow or ice tile. The goal is the exit; a plate is a pressure plate,
-//  pressed while the player or a boulder rests on it; a door is open while every plate is pressed.
-export type EntityKind = 'player' | 'boulder' | 'goal' | 'plate' | 'door';
+//  pressed while the player or a boulder rests on it; a door is open while every plate is pressed;
+//  a trap arms the first time the player steps on it and restarts the level the second time.
+export type EntityKind = 'player' | 'boulder' | 'goal' | 'plate' | 'door' | 'trap';
 
 export interface LegendEntry
 {
@@ -40,5 +41,7 @@ export const LEGEND: Readonly<Record<string, LegendEntry>> = {
     'o': { tile: TileIndex.Floor, entity: 'plate' },
     'O': { tile: TileIndex.Ice, entity: 'plate' },
     'd': { tile: TileIndex.Floor, entity: 'door' },
-    'D': { tile: TileIndex.Ice, entity: 'door' }
+    'D': { tile: TileIndex.Ice, entity: 'door' },
+    //  Traps only stand on snow, so the player always stops on one rather than sliding over it
+    't': { tile: TileIndex.Floor, entity: 'trap' }
 };

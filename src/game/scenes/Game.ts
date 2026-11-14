@@ -1,6 +1,7 @@
-import { Scene, Scenes, Input, GameObjects } from 'phaser';
+import { Scene, Scenes, Input, GameObjects, Animations } from 'phaser';
 import { parseLevel, GridPoint } from '../levels/LevelParser';
 import { buildLevel, BuiltLevel, tileCenter, ySortDepth } from '../levels/LevelLoader';
+import type { Trap } from '../traps';
 import { LEVELS, isLastInPack } from '../levels/levelList';
 import { markCompleted } from '../progress';
 import { clearLevelInProgress, fitsLevel, loadLevelInProgress, saveLevelInProgress } from '../levelInProgress';
@@ -48,6 +49,9 @@ export class Game extends Scene
     isMoving = false;
     //  True once the player has reached the exit; gameplay input stops
     levelComplete = false;
+    //  True while an armed trap springs; gameplay input stops until the restart, or until a
+    //  boulder has fallen in
+    springing = false;
     //  Direction the player sprite faces; levels start facing down
     facing: Direction = 'down';
 
@@ -82,16 +86,19 @@ export class Game extends Scene
         const data = parseLevel(this.levelText ?? this.cache.text.get(LEVELS[this.levelIndex].key));
         this.facing = 'down';
         const saved = this.resume ? loadLevelInProgress() : null;
+        let armedTraps: number[] = [];
         if (saved && !this.levelText && saved.levelKey === LEVELS[this.levelIndex].key && fitsLevel(saved, data))
         {
             data.player = saved.player;
             data.boulders = saved.boulders;
             this.facing = saved.facing;
+            armedTraps = saved.armedTraps ?? [];
         }
-        this.level = buildLevel(this, data);
+        this.level = buildLevel(this, data, armedTraps);
         this.playerPos = { ...data.player };
         this.isMoving = false;
         this.levelComplete = false;
+        this.springing = false;
         this.reportedDir = null;
         this.playPlayerAnim('idle');
         this.saveProgress();
@@ -113,7 +120,7 @@ export class Game extends Scene
             keyboard.on('keydown-R', (event: KeyboardEvent) =>
             {
                 const otherKeyHeld = withModifier(event) || this.heldDirection() !== null;
-                if (!otherKeyHeld && !this.levelComplete)
+                if (!otherKeyHeld && !this.levelComplete && !this.springing)
                 {
                     this.scene.restart(this.restartData());
                 }
@@ -133,7 +140,7 @@ export class Game extends Scene
 
     update ()
     {
-        if (this.isMoving || this.levelComplete)
+        if (this.isMoving || this.levelComplete || this.springing)
         {
             return;
         }
@@ -167,6 +174,7 @@ export class Game extends Scene
                 this.tweenAlong(this.level.boulders[i], this.level.data.boulders[i], move.path, () =>
                 {
                     this.level.data.boulders[i] = { ...end };
+                    this.boulderOnTrap(i);
                 });
                 break;
             }
@@ -223,7 +231,73 @@ export class Game extends Scene
         this.tweenAlong(this.level.player, this.playerPos, path, () =>
         {
             this.playerPos = { ...end };
+            this.stepOnTrap();
             then?.();
+        });
+    }
+
+    //  The trap at a tile, or undefined
+    private trapAt (p: GridPoint): Trap | undefined
+    {
+        return this.level.traps.find(t => t.position.x === p.x && t.position.y === p.y);
+    }
+
+    //  If the player has stopped on a trap: arms it the first time, and springs it the second,
+    //  dropping the player into the pit and restarting the level once the animation ends
+    private stepOnTrap ()
+    {
+        const trap = this.trapAt(this.playerPos);
+        if (!trap)
+        {
+            return;
+        }
+        if (!trap.armed)
+        {
+            trap.armed = true;
+            trap.sprite.play('trap-arm');
+            return;
+        }
+
+        this.springing = true;
+        this.playPlayerAnim('idle');
+        trap.sprite.play('trap-spring');
+        const player = this.level.player;
+        const duration = trap.sprite.anims.duration;
+        //  The player shrinks and fades as they fall into the opening pit
+        this.tweens.add({ targets: player, scale: player.scale * 0.4, alpha: 0, delay: duration / 3, duration: duration * 2 / 3 });
+        trap.sprite.once(Animations.Events.ANIMATION_COMPLETE, () => this.scene.restart(this.restartData()));
+    }
+
+    //  If boulder i has stopped on a trap: arms it the first time, and springs it the second. The
+    //  boulder is removed (no fall animation yet), and once the trap has opened it closes again,
+    //  unarmed. Play carries on while it closes; anything stopping on it then arms it as usual.
+    private boulderOnTrap (i: number)
+    {
+        const trap = this.trapAt(this.level.data.boulders[i]);
+        if (!trap)
+        {
+            return;
+        }
+        if (!trap.armed)
+        {
+            trap.armed = true;
+            trap.sprite.play('trap-arm');
+            return;
+        }
+
+        this.level.boulders[i].destroy();
+        this.level.boulders.splice(i, 1);
+        this.level.data.boulders.splice(i, 1);
+        this.updatePlates();
+
+        this.springing = true;
+        trap.sprite.play('trap-spring');
+        trap.sprite.once(Animations.Events.ANIMATION_COMPLETE, () =>
+        {
+            trap.armed = false;
+            trap.sprite.play('trap-close');
+            this.springing = false;
+            this.saveProgress();
         });
     }
 
@@ -286,7 +360,7 @@ export class Game extends Scene
     //  editor playtests, or once the level is complete.
     private saveProgress ()
     {
-        if (this.levelText || this.levelComplete)
+        if (this.levelText || this.levelComplete || this.springing)
         {
             return;
         }
@@ -294,7 +368,8 @@ export class Game extends Scene
             levelKey: LEVELS[this.levelIndex].key,
             player: { ...this.playerPos },
             boulders: this.level.data.boulders.map(b => ({ ...b })),
-            facing: this.facing
+            facing: this.facing,
+            armedTraps: this.level.traps.flatMap((t, i) => t.armed ? [i] : [])
         });
     }
 
@@ -302,7 +377,7 @@ export class Game extends Scene
     //  A paused scene receives no input, so this only runs while playing.
     private pauseGame ()
     {
-        if (this.levelComplete)
+        if (this.levelComplete || this.springing)
         {
             return;
         }

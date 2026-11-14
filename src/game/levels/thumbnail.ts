@@ -70,7 +70,8 @@ export function levelThumbnail (scene: Scene, level: LevelInfo, maxWidth: number
         ctx.drawImage(source(textureKey), f.cutX, f.cutY, f.cutWidth, f.cutHeight, x, y, w, h);
     };
 
-    //  Terrain (the tilemap), then the exit ring and raised pressure plates: all under everything else
+    //  Terrain (the tilemap), then the exit ring, raised pressure plates and unarmed traps: all
+    //  under everything else
     const strip = source('tiles');
     tiles.forEach((row, y) => row.forEach((_tile, x) =>
     {
@@ -83,6 +84,10 @@ export function levelThumbnail (scene: Scene, level: LevelInfo, maxWidth: number
     if (data.goal)
     {
         ctx.drawImage(source('goal'), data.goal.x * T, top + data.goal.y * T, T, T);
+    }
+    for (const t of data.traps)
+    {
+        drawFrame('trap', 0, t.x * T, top + t.y * T, T, T);
     }
     const plateWidth = T * PLATE_FRAME_WIDTH / PLATE_ART_TILE_SIZE;
     const plateHeight = T * PLATE_FRAME_HEIGHT / PLATE_ART_TILE_SIZE;

@@ -19,6 +19,8 @@ export interface LevelData
     //  Pressure plates, and doors that are open while every plate is pressed
     plates: GridPoint[];
     doors: GridPoint[];
+    //  Rune traps, on snow
+    traps: GridPoint[];
 }
 
 export class LevelParseError extends Error
@@ -73,6 +75,7 @@ export function parseLevelDraft (text: string): LevelDraft
     const boulders: GridPoint[] = [];
     const plates: GridPoint[] = [];
     const doors: GridPoint[] = [];
+    const traps: GridPoint[] = [];
     let player: GridPoint | null = null;
     let goal: GridPoint | null = null;
 
@@ -126,10 +129,14 @@ export function parseLevelDraft (text: string): LevelDraft
             {
                 doors.push({ x, y });
             }
+            else if (entry.entity === 'trap')
+            {
+                traps.push({ x, y });
+            }
         }
 
         tiles.push(row);
     });
 
-    return { width, height, tiles, player, goal, boulders, plates, doors };
+    return { width, height, tiles, player, goal, boulders, plates, doors, traps };
 }
