@@ -6,7 +6,7 @@ import { AUTOTILE_SETS, autotileFrame, displayTileIndex, isTallSet } from './aut
 import { PLAYER_FRAME_HEIGHT, PLAYER_FRAME_WIDTH } from '../playerAnimations';
 import { PLAYER_SPRITE } from '../settings';
 import { PLATE_ART_TILE_SIZE, PLATE_DROP, PLATE_FRAME_HEIGHT, PLATE_FRAME_WIDTH, PLATE_UP_FRAME } from '../plates';
-import { DOOR_CLOSED, DOOR_FRAME_HEIGHT, DOOR_FRAME_WIDTH, DOOR_OPEN } from '../doors';
+import { DOOR_BOTTOM, DOOR_CLOSED, DOOR_FRAME_HEIGHT, DOOR_FRAME_WIDTH, DOOR_OPEN } from '../doors';
 import { doorsOpen } from '../movement/Movement';
 
 //  Pixels per tile of the art itself; thumbnails with smaller tiles shrink it
@@ -44,7 +44,7 @@ export function levelThumbnail (scene: Scene, level: LevelInfo, maxWidth: number
     }));
     const playerHeightTiles = PLAYER_FRAME_HEIGHT * PLAYER_SPRITE.pixelScale / TILE_SIZE;
     const playerFeetTiles = PLAYER_SPRITE.feetAboveTileBottom / TILE_SIZE;
-    const doorRise = DOOR_FRAME_HEIGHT / DOOR_FRAME_WIDTH - 1;
+    const doorRise = (DOOR_FRAME_HEIGHT - DOOR_BOTTOM) / DOOR_FRAME_WIDTH;
     const rise = Math.max(wallRise, playerHeightTiles + playerFeetTiles - 1, data.doors.length > 0 ? doorRise : 0, 0);
 
     //  Whole pixels per tile, so every tile is the same size
@@ -121,7 +121,8 @@ export function levelThumbnail (scene: Scene, level: LevelInfo, maxWidth: number
             }
             if (doors.has(`${x},${y}`))
             {
-                drawFrame(door.key, door.frame, x * T, bottom - doorHeight, T, doorHeight);
+                const doorBottom = bottom - T + DOOR_BOTTOM * T / DOOR_FRAME_WIDTH;
+                drawFrame(door.key, door.frame, x * T, doorBottom - doorHeight, T, doorHeight);
             }
             if (boulders.has(`${x},${y}`))
             {

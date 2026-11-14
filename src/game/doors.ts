@@ -4,12 +4,17 @@ import { GridPoint } from './levels/LevelParser';
 //  Metal doors (portcullises), open while every pressure plate is pressed (see doorsOpen in
 //  Movement.ts).
 //
-//  Art: ranitayas_door_open.png and ranitayas_door_close.png, strips of 16x32 frames: bars
-//  standing on the bottom of the tile and rising over the tile above. 'door-open' goes from
-//  closed to open and 'door-close' back again; each animation plays every frame of its sheet.
+//  Art: ranitayas_door_open.png and ranitayas_door_close.png, strips of 16x20 frames (one tile
+//  wide): bars standing on a base just below the middle of the tile and rising over the tile
+//  above. 'door-open' goes from closed to open and 'door-close' back again; each animation plays
+//  every frame of its sheet.
 
 export const DOOR_FRAME_WIDTH = 16;
-export const DOOR_FRAME_HEIGHT = 32;
+export const DOOR_FRAME_HEIGHT = 20;
+
+//  Art pixels from the top of a door's tile down to the bottom of its frame, putting the 2-pixel
+//  base just below the tile's centre
+export const DOOR_BOTTOM = 10;
 const DOOR_FPS = 12;
 
 //  The pictures of a door at rest: the first frame of the animation that leaves that state

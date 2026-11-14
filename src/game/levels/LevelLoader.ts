@@ -5,7 +5,7 @@ import { PLAYER_FRAME_HEIGHT } from '../playerAnimations';
 import { PLAYER_SPRITE } from '../settings';
 import { AUTOTILE_SETS, AutotileSet, autotileFrame, autotileFrameSize, autotileLevel, isTallSet } from './autotile';
 import { Plate, PLATE_ART_TILE_SIZE, PLATE_DROP, PLATE_PRESSED, PLATE_UP_FRAME } from '../plates';
-import { Door, DOOR_CLOSED, DOOR_FRAME_WIDTH, setDoorOpen } from '../doors';
+import { Door, DOOR_BOTTOM, DOOR_CLOSED, DOOR_FRAME_WIDTH, setDoorOpen } from '../doors';
 import { Trap, TRAP_FRAME_SIZE, trapArmedFrame } from '../traps';
 import { doorsOpen } from '../movement/Movement';
 
@@ -98,15 +98,15 @@ export function addTrap (scene: Scene, p: GridPoint, armed = false): GameObjects
         .setDepth(GOAL_DEPTH);
 }
 
-//  Adds a closed door on tile p: standing on the bottom edge of its tile and rising over the tile
-//  above, depth-sorted by that bottom edge like a tall wall
+//  Adds a closed door on tile p: its base just below the middle of the tile (see DOOR_BOTTOM),
+//  rising over the tile above, and depth-sorted by the tile's bottom edge like a tall wall
 export function addDoor (scene: Scene, p: GridPoint): GameObjects.Sprite
 {
-    const bottom = (p.y + 1) * TILE_SIZE;
-    return scene.add.sprite(p.x * TILE_SIZE, bottom, DOOR_CLOSED.key, DOOR_CLOSED.frame)
+    const scale = TILE_SIZE / DOOR_FRAME_WIDTH;
+    return scene.add.sprite(p.x * TILE_SIZE, p.y * TILE_SIZE + DOOR_BOTTOM * scale, DOOR_CLOSED.key, DOOR_CLOSED.frame)
         .setOrigin(0, 1)
-        .setScale(TILE_SIZE / DOOR_FRAME_WIDTH)
-        .setDepth(bottom);
+        .setScale(scale)
+        .setDepth((p.y + 1) * TILE_SIZE);
 }
 
 //  Adds a boulder image on tile p.
