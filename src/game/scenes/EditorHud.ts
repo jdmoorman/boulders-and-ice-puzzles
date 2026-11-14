@@ -24,7 +24,7 @@ const OPTIONS: readonly { key: keyof EditorSettings, label: string, description:
     {
         key: 'freeSnowWalking',
         label: 'Free walking on snow',
-        description: "Analysis doesn't count steps from snow to snow."
+        description: "Analysis doesn't count steps from snow to snow, except onto traps."
     }
 ];
 

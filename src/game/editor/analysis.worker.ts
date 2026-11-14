@@ -17,7 +17,7 @@ import { AnalysisMessage, AnalysisRequest, DIRECTION_LETTERS, FoundTile, MAX_STA
 //  leaving one boulder fewer and the trap unarmed.
 //
 //  Walking around on snow is trivial, so with freeSnowWalking set, steps from snow to snow are
-//  free; every other move costs 1. The search is a 0-1 breadth-first search: positions are
+//  free, except steps onto a trap; every other move costs 1. The search is a 0-1 breadth-first search: positions are
 //  explored in order of cost, one cost at a time, with free steps joining the current cost and
 //  paid moves the next. Without free steps it's a plain breadth-first search.
 
@@ -215,7 +215,8 @@ function analyze (level: LevelData, freeSnowWalking: boolean): void
                             break;
                         }
                         const after = trap === undefined ? traps : traps.slice(0, trap) + '1' + traps.slice(trap + 1);
-                        if (onFreeSnow && result.path.length === 1 && isFreeSnow(end))
+                        //  Steps onto a trap always count
+                        if (onFreeSnow && result.path.length === 1 && isFreeSnow(end) && trap === undefined)
                         {
                             addState(cellOf(end), cells, after, s, d, costOf);
                             break;
