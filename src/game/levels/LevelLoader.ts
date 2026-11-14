@@ -180,7 +180,8 @@ export function buildLevel (scene: Scene, data: LevelData, armedTraps: readonly 
     }
 
     //  Plates start pressed if the player or a boulder starts on them (as in a level picked up
-    //  where it was left), and doors open if every plate is pressed or something is in the doorway
+    //  where it was left), and doors open if every plate is pressed and every trap armed, or if
+    //  something is in the doorway
     const resting = [data.player, ...data.boulders];
     const occupied = (p: GridPoint) => resting.some(r => r.x === p.x && r.y === p.y);
     const plates = data.plates.map(p =>
@@ -192,7 +193,7 @@ export function buildLevel (scene: Scene, data: LevelData, armedTraps: readonly 
         }
         return plate;
     });
-    const open = doorsOpen(data, resting);
+    const open = doorsOpen(data, resting, data.traps.every((_t, i) => armedTraps.includes(i)));
     const doors = data.doors.map(p =>
     {
         const door: Door = { position: p, sprite: addDoor(scene, p), open: false };

@@ -157,7 +157,7 @@ export class Game extends Scene
             return;
         }
 
-        const move = resolveMove(this.level.data, this.playerPos, dir);
+        const move = resolveMove(this.level.data, this.playerPos, dir, this.trapsArmed());
         this.facing = dir;
         switch (move.kind)
         {
@@ -255,6 +255,8 @@ export class Game extends Scene
         {
             trap.armed = true;
             trap.sprite.play('trap-arm');
+            //  Arming the last trap opens the doors
+            this.updatePlates();
             return;
         }
 
@@ -282,9 +284,14 @@ export class Game extends Scene
         {
             trap.armed = true;
             trap.sprite.play('trap-arm');
+            //  Arming the last trap opens the doors
+            this.updatePlates();
             return;
         }
 
+        //  The trap is unarmed from now on (so the doors close), though it's drawn closing after
+        //  it has opened
+        trap.armed = false;
         this.level.boulders[i].destroy();
         this.level.boulders.splice(i, 1);
         this.level.data.boulders.splice(i, 1);
@@ -294,15 +301,20 @@ export class Game extends Scene
         trap.sprite.play('trap-spring');
         trap.sprite.once(Animations.Events.ANIMATION_COMPLETE, () =>
         {
-            trap.armed = false;
             trap.sprite.play('trap-close');
             this.springing = false;
             this.saveProgress();
         });
     }
 
+    //  Whether every trap is armed (true without traps), which doors need to open
+    private trapsArmed (): boolean
+    {
+        return this.level.traps.every(t => t.armed);
+    }
+
     //  Presses the pressure plates the player and boulders rest on and releases the others, then
-    //  opens the doors if every plate is pressed and closes them if not. `mover` is the position
+    //  opens the doors if every plate is pressed and every trap armed, and closes them if not. `mover` is the position
     //  (this.playerPos or one of the boulders) of something that's moving, and `arriving` where
     //  it will stop: its old plate releases as it leaves, and a plate it's heading for presses
     //  before it gets there. A door doesn't close on anything in its doorway, including a mover
@@ -313,7 +325,7 @@ export class Game extends Scene
         const resting = arriving ? [...others, arriving] : others;
         updatePlates(this.level.plates, resting);
 
-        const open = doorsOpen(this.level.data, resting);
+        const open = doorsOpen(this.level.data, resting, this.trapsArmed());
         const inDoorways = mover && !arriving ? [...resting, mover] : resting;
         for (const door of this.level.doors)
         {

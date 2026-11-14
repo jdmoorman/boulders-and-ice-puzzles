@@ -34,7 +34,10 @@ export const LEVEL_PACKS: readonly LevelPack[] = [
     {
         name: 'Traps',
         levels: [
-            { key: 'level-traps-1', file: 'levels/traps/level1.txt' }
+            { key: 'level-traps-1', file: 'levels/traps/level1.txt' },
+            { key: 'level-traps-2', file: 'levels/traps/level2.txt' },
+            { key: 'level-traps-3', file: 'levels/traps/level3.txt' },
+            { key: 'level-traps-4', file: 'levels/traps/level4.txt' }
         ]
     },
     {

@@ -38,12 +38,13 @@ function isGoal (data: LevelData, p: GridPoint): boolean
 
 const samePoint = (a: GridPoint, b: GridPoint) => a.x === b.x && a.y === b.y;
 
-//  Whether the doors are open: every pressure plate has the player or a boulder on it. Only the
-//  `resting` positions count, so something that has just started moving no longer holds its
-//  plate down. With no plates the doors are always open.
-export function doorsOpen (data: LevelData, resting: readonly GridPoint[]): boolean
+//  Whether the doors are open: every pressure plate has the player or a boulder on it, and every
+//  trap is armed (`trapsArmed`; true in a level without traps). Only the `resting` positions
+//  count, so something that has just started moving no longer holds its plate down. With no
+//  plates and no traps the doors are always open.
+export function doorsOpen (data: LevelData, resting: readonly GridPoint[], trapsArmed: boolean): boolean
 {
-    return data.plates.every(plate => resting.some(p => samePoint(p, plate)));
+    return trapsArmed && data.plates.every(plate => resting.some(p => samePoint(p, plate)));
 }
 
 //  True if nothing can enter this cell: off the map, void, wall, the exit, a boulder, or a
@@ -108,17 +109,18 @@ export type MoveResult =
 //    boulder rather than pushing it.
 //  - Closed doors block like walls. Whatever moves (the player, or the pushed boulder) leaves
 //    its plate as it starts, so a door it was holding open is closed for that move.
-export function resolveMove (data: LevelData, from: GridPoint, dir: Direction): MoveResult
+//  `trapsArmed` says whether every trap is armed (see doorsOpen).
+export function resolveMove (data: LevelData, from: GridPoint, dir: Direction, trapsArmed: boolean): MoveResult
 {
     const boulderIndex = boulderAt(data, step(from, dir));
     if (boulderIndex >= 0)
     {
         const resting = [from, ...data.boulders.filter((_b, i) => i !== boulderIndex)];
-        const path = computeMove(data, data.boulders[boulderIndex], dir, doorsOpen(data, resting));
+        const path = computeMove(data, data.boulders[boulderIndex], dir, doorsOpen(data, resting, trapsArmed));
         return path.length > 0 ? { kind: 'push', boulderIndex, path } : { kind: 'blocked' };
     }
 
-    const path = computeMove(data, from, dir, doorsOpen(data, data.boulders));
+    const path = computeMove(data, from, dir, doorsOpen(data, data.boulders, trapsArmed));
     const end = path.length > 0 ? path[path.length - 1] : from;
 
     //  The move stopped because it was blocked (not because it slid onto non-ice)

@@ -74,16 +74,27 @@ export class EditorAnalysis
         const data: LevelData = { ...this.data, boulders: this.data.boulders.map(b => ({ ...b })) };
         let player = data.player;
         const segments: PathSegment[] = [];
+        //  Per trap, whether it's armed; stopping on one arms it, and a boulder stopping on an
+        //  armed one falls in and leaves it unarmed (the player stopping on one ends the route)
+        const armed = data.traps.map(() => false);
+        const trapAt = (p: GridPoint) => data.traps.findIndex(t => t.x === p.x && t.y === p.y);
 
         for (const letter of moves)
         {
-            const result = resolveMove(data, player, LETTER_DIRECTIONS[letter]);
+            const result = resolveMove(data, player, LETTER_DIRECTIONS[letter], armed.every(a => a));
             switch (result.kind)
             {
                 case 'walk':
+                {
                     segments.push({ kind: 'player', cells: [player, ...result.path] });
                     player = result.path[result.path.length - 1];
+                    const trap = trapAt(player);
+                    if (trap >= 0)
+                    {
+                        armed[trap] = true;
+                    }
                     break;
+                }
 
                 case 'exit':
                     segments.push({ kind: 'player', cells: [player, ...result.path, result.exit] });
@@ -94,7 +105,21 @@ export class EditorAnalysis
                 {
                     const boulder = data.boulders[result.boulderIndex];
                     segments.push({ kind: 'boulder', cells: [boulder, ...result.path] });
-                    data.boulders[result.boulderIndex] = result.path[result.path.length - 1];
+                    const end = result.path[result.path.length - 1];
+                    const trap = trapAt(end);
+                    if (trap >= 0 && armed[trap])
+                    {
+                        data.boulders.splice(result.boulderIndex, 1);
+                        armed[trap] = false;
+                    }
+                    else
+                    {
+                        data.boulders[result.boulderIndex] = end;
+                        if (trap >= 0)
+                        {
+                            armed[trap] = true;
+                        }
+                    }
                     break;
                 }
             }

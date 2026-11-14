@@ -11,7 +11,8 @@ import { AnalysisMessage, AnalysisRequest, DIRECTION_LETTERS, FoundTile, MAX_STA
 //  resolveMove. A tile counts as reached by the first move that takes the player onto or through
 //  it, so ice the player slides across counts too (an exit placed there would stop the slide).
 //  Reaching the exit is a final move that isn't explored further. Which traps are armed is part of
-//  a position: the player or a boulder stopping on an unarmed trap arms it. The player stopping on
+//  a position (doors open only while every trap is armed): the player or a boulder stopping on an
+//  unarmed trap arms it. The player stopping on
 //  an armed one restarts the level, so that move is a dead end; a boulder stopping on one falls in,
 //  leaving one boulder fewer and the trap unarmed.
 //
@@ -201,7 +202,7 @@ function analyze (level: LevelData, freeSnowWalking: boolean): void
 
             DIRECTIONS.forEach((dir, d) =>
             {
-                const result = resolveMove(data, player, dir);
+                const result = resolveMove(data, player, dir, !traps.includes('0'));
                 switch (result.kind)
                 {
                     case 'walk':

@@ -95,9 +95,9 @@ export function levelThumbnail (scene: Scene, level: LevelInfo, maxWidth: number
 
     //  Then row by row, so things further down cover the tall walls behind them
     const boulders = new Set(data.boulders.map(b => `${b.x},${b.y}`));
-    //  Doors as they start: closed unless the level has no plates
+    //  Doors as they start: closed unless the level has no plates and no traps
     const doors = new Set(data.doors.map(d => `${d.x},${d.y}`));
-    const door = doorsOpen(data, [data.player, ...data.boulders]) ? DOOR_OPEN : DOOR_CLOSED;
+    const door = doorsOpen(data, [data.player, ...data.boulders], data.traps.length === 0) ? DOOR_OPEN : DOOR_CLOSED;
     const doorHeight = T * DOOR_FRAME_HEIGHT / DOOR_FRAME_WIDTH;
     tiles.forEach((row, y) =>
     {
