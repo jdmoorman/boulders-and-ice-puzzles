@@ -40,6 +40,7 @@ export class Preloader extends Scene
             frameHeight: PLAYER_FRAME_HEIGHT
         });
         this.load.image('boulder', 'rock.png');
+        this.load.image('goal', 'ranitayas_wall_hole.png');
         this.load.image('wallAutotile', 'ranitayas_autotile_wall.png');
         this.load.image('floor', 'ranitayas_floor.png');
         this.load.image('ice', 'buch_ice_muted.png');
@@ -58,7 +59,7 @@ export class Preloader extends Scene
         //  When all the assets have loaded, it's often worth creating global objects here that the rest of the game can use.
         //  For example, you can define global animations here, so we can use them in other scenes.
         //  Keep the scaled-up pixel art sharp (only these textures; others still smooth)
-        for (const key of ['player', 'boulder', 'floor', 'plate-press', 'plate-unpress', 'door-open', 'door-close', 'trap'])
+        for (const key of ['player', 'boulder', 'goal', 'floor', 'plate-press', 'plate-unpress', 'door-open', 'door-close', 'trap'])
         {
             this.textures.get(key).setFilter(Textures.FilterMode.NEAREST);
         }

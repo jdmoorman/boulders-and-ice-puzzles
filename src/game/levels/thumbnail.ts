@@ -70,8 +70,8 @@ export function levelThumbnail (scene: Scene, level: LevelInfo, maxWidth: number
         ctx.drawImage(source(textureKey), f.cutX, f.cutY, f.cutWidth, f.cutHeight, x, y, w, h);
     };
 
-    //  Terrain (the tilemap), then the exit ring, raised pressure plates and unarmed traps: all
-    //  under everything else
+    //  Terrain (the tilemap), then raised pressure plates and unarmed traps: all under everything
+    //  else
     const strip = source('tiles');
     tiles.forEach((row, y) => row.forEach((_tile, x) =>
     {
@@ -81,10 +81,6 @@ export function levelThumbnail (scene: Scene, level: LevelInfo, maxWidth: number
             ctx.drawImage(strip, index * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE, x * T, top + y * T, T, T);
         }
     }));
-    if (data.goal)
-    {
-        ctx.drawImage(source('goal'), data.goal.x * T, top + data.goal.y * T, T, T);
-    }
     for (const t of data.traps)
     {
         drawFrame('trap', 0, t.x * T, top + t.y * T, T, T);
@@ -115,6 +111,13 @@ export function levelThumbnail (scene: Scene, level: LevelInfo, maxWidth: number
                 const f = textureFrame(set.texture, frame);
                 const h = T * f.cutHeight / f.cutWidth;
                 drawFrame(set.texture, frame, x * T, bottom - h, T, h);
+            }
+            //  The exit: a hole drawn over its wall
+            if (data.goal && data.goal.x === x && data.goal.y === y)
+            {
+                const f = textureFrame('goal', undefined);
+                const h = T * f.cutHeight / f.cutWidth;
+                drawFrame('goal', undefined, x * T, bottom - h, T, h);
             }
             if (doors.has(`${x},${y}`))
             {

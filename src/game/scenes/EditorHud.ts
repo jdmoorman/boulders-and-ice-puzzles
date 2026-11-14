@@ -37,7 +37,7 @@ const PALETTE_ICONS: Readonly<Record<EditorTool, readonly ButtonIcon[]>> = {
     wall: [WALL_ICON],
     snow: [SNOW_ICON],
     ice: [{ key: 'tiles', frame: TileIndex.Ice }],
-    exit: [SNOW_ICON, { key: 'goal' }],
+    exit: [WALL_ICON, { key: 'goal' }],
     player: [{ key: 'player', frame: 'palette' }],
     boulder: [{ key: 'boulder' }],
     plate: [SNOW_ICON, { key: 'plate-press', frame: PLATE_UP_FRAME }],

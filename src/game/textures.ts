@@ -10,8 +10,8 @@ import {
 //  - 'tiles': a horizontal strip of TILE_SIZE tiles in TileIndex order, followed by every frame
 //    of each autotile set (see autotile.ts). Floor (snow) and ice are the plain 'floor' and
 //    'ice' images; walls come from an autotile sheet. All are scaled up to a tile.
-//  - 'goal': the exit's gold ring, drawn over the snow or ice under it.
-//  The player comes from player/openmon/set1-sheet3.png (see playerAnimations.ts) and boulders from rock.png.
+//  The player comes from player/openmon/set1-sheet3.png (see playerAnimations.ts), boulders from
+//  rock.png and the exit from ranitayas_wall_hole.png.
 export function generateTextures (scene: Scene): void
 {
     const S = TILE_SIZE;
@@ -74,22 +74,6 @@ export function generateTextures (scene: Scene): void
     }
     tiles.refresh();
     tiles.setFilter(Textures.FilterMode.NEAREST);
-
-    //  Goal ring
-    const goal = scene.textures.createCanvas('goal', S, S);
-    if (!goal)
-    {
-        throw new Error("Could not create canvas texture 'goal'");
-    }
-    const g = goal.context;
-    g.beginPath();
-    g.arc(S / 2, S / 2, S * 0.3, 0, Math.PI * 2);
-    g.fillStyle = 'rgba(242, 194, 48, 0.35)';
-    g.fill();
-    g.lineWidth = 6;
-    g.strokeStyle = '#f2c230';
-    g.stroke();
-    goal.refresh();
 
     //  The standing, facing-down player (sheet frame 1) trimmed to its visible pixels, so the
     //  editor palette can draw the figure itself as big as the other icons

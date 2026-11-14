@@ -14,7 +14,8 @@ export const PLAIN_TILE_COUNT = TileIndex.Wall + 1;
 
 export const TILE_SIZE = 64;
 
-//  Things that stand on a snow or ice tile. The goal is the exit; a plate is a pressure plate,
+//  Things that stand on a snow or ice tile, except the goal: the exit, a hole in a south-facing
+//  wall (see isSouthFacingWall), entered only from the tile below. A plate is a pressure plate,
 //  pressed while the player or a boulder rests on it; a door is open while every plate is pressed;
 //  a trap arms the first time the player steps on it and restarts the level the second time.
 export type EntityKind = 'player' | 'boulder' | 'goal' | 'plate' | 'door' | 'trap';
@@ -26,7 +27,7 @@ export interface LegendEntry
 }
 
 //  ASCII level legend. For entities, lowercase means the entity stands on floor
-//  and uppercase means it stands on ice.
+//  and uppercase means it stands on ice. The exit is a wall.
 export const LEGEND: Readonly<Record<string, LegendEntry>> = {
     ' ': { tile: TileIndex.Void },
     '#': { tile: TileIndex.Wall },
@@ -36,8 +37,7 @@ export const LEGEND: Readonly<Record<string, LegendEntry>> = {
     'P': { tile: TileIndex.Ice, entity: 'player' },
     'b': { tile: TileIndex.Floor, entity: 'boulder' },
     'B': { tile: TileIndex.Ice, entity: 'boulder' },
-    'x': { tile: TileIndex.Floor, entity: 'goal' },
-    'X': { tile: TileIndex.Ice, entity: 'goal' },
+    'x': { tile: TileIndex.Wall, entity: 'goal' },
     'o': { tile: TileIndex.Floor, entity: 'plate' },
     'O': { tile: TileIndex.Ice, entity: 'plate' },
     'd': { tile: TileIndex.Floor, entity: 'door' },
@@ -45,3 +45,10 @@ export const LEGEND: Readonly<Record<string, LegendEntry>> = {
     //  Traps only stand on snow, so the player always stops on one rather than sliding over it
     't': { tile: TileIndex.Floor, entity: 'trap' }
 };
+
+//  Whether (x, y) is a wall with snow or ice right below it: the only place an exit can go
+export function isSouthFacingWall (tiles: number[][], x: number, y: number): boolean
+{
+    const below = tiles[y + 1]?.[x];
+    return tiles[y]?.[x] === TileIndex.Wall && (below === TileIndex.Floor || below === TileIndex.Ice);
+}

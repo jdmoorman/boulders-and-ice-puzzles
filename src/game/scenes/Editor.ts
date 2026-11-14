@@ -1,7 +1,7 @@
 import { Scene, Scenes, GameObjects, Input, Tilemaps } from 'phaser';
 import { cellKey, EditorLevel, EditorSnapshot, EditorTool } from '../editor/EditorLevel';
 import { parseLevelDraft, GridPoint, LevelParseError } from '../levels/LevelParser';
-import { TILE_SIZE, TileIndex } from '../levels/Tiles';
+import { isSouthFacingWall, TILE_SIZE, TileIndex } from '../levels/Tiles';
 import { AUTOTILE_SETS, AutotileSet, displayTileIndex, isTallSet } from '../levels/autotile';
 import { addBoulder, addDoor, addGoal, addPlate, addPlayer, addTallTile, addTrap, tileCenter } from '../levels/LevelLoader';
 import { playerAnimKey } from '../playerAnimations';
@@ -517,7 +517,13 @@ export class Editor extends Scene
     //  Applies the stroke's tool to a cell and redraws what changed
     private applyAt (tool: EditorTool, x: number, y: number)
     {
-        const changed = this.state.level.applyTool(tool, x, y);
+        const level = this.state.level;
+        if (tool === 'exit' && level.inBounds(x, y) && !isSouthFacingWall(level.tiles, x, y))
+        {
+            this.message('The exit goes in a wall with snow or ice below it.');
+            return;
+        }
+        const changed = level.applyTool(tool, x, y);
         if (changed.length > 0 && this.pending)
         {
             const { undo } = this.state;

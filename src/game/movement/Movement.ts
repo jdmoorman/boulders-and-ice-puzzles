@@ -102,7 +102,8 @@ export type MoveResult =
 //  Resolves what happens when the player at `from` tries to move in `dir`.
 //  - Stepping into a boulder pushes it: only the boulder moves, sliding on ice like the player.
 //    If the boulder can't move, the move is blocked.
-//  - A move that the exit stops (a direct step, or a slide on ice) is an exit attempt.
+//  - A move up that the exit stops (a direct step, or a slide on ice) is an exit attempt. The
+//    exit is a hole in a wall, entered only from below; from any other side it's just wall.
 //  - Otherwise the player walks, sliding on ice. A sliding player stops in front of a
 //    boulder rather than pushing it.
 //  - Closed doors block like walls. Whatever moves (the player, or the pushed boulder) leaves
@@ -124,7 +125,7 @@ export function resolveMove (data: LevelData, from: GridPoint, dir: Direction): 
     //  if nothing was walked, or if it ended on ice.
     const stoppedByBlock = path.length === 0 || tileAt(data, end) === TileIndex.Ice;
     const next = step(end, dir);
-    if (stoppedByBlock && isGoal(data, next))
+    if (stoppedByBlock && dir === 'up' && isGoal(data, next))
     {
         return { kind: 'exit', path, exit: next };
     }

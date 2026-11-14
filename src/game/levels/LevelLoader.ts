@@ -33,7 +33,7 @@ export function tileCenter (p: GridPoint): { x: number, y: number }
     };
 }
 
-//  Draw order: the tilemap sits at depth 0 and the exit and pressure plates just above it, under
+//  Draw order: the tilemap sits at depth 0 and pressure plates and traps just above it, under
 //  everything else.
 //  Tall wall images, the player and boulders are sorted by the bottom edge of the tile they stand
 //  on, so a tall wall covers things on the tiles north of it and is covered by things south of it.
@@ -58,15 +58,22 @@ export function addTallTile (
     return image;
 }
 
-//  Depth of the exit, pressure plates and traps: over the terrain but under everything that stands on tiles (y-sorted
+//  Depth of pressure plates and traps: over the terrain but under everything that stands on tiles (y-sorted
 //  objects start at TILE_SIZE / 2), so the player is drawn over it
 export const GOAL_DEPTH = 0.5;
 
-//  Adds the exit, a gold ring, on tile p
+//  Pixels per tile of the exit's art
+export const GOAL_ART_TILE_SIZE = 16;
+
+//  Adds the exit on wall tile p: a hole (ranitayas_wall_hole.png) drawn over the wall, standing on
+//  the bottom edge of the tile like the wall image, and just in front of it
 export function addGoal (scene: Scene, p: GridPoint): GameObjects.Image
 {
-    const { x, y } = tileCenter(p);
-    return scene.add.image(x, y, 'goal').setDepth(GOAL_DEPTH);
+    const bottom = (p.y + 1) * TILE_SIZE;
+    return scene.add.image(p.x * TILE_SIZE, bottom, 'goal')
+        .setOrigin(0, 1)
+        .setScale(TILE_SIZE / GOAL_ART_TILE_SIZE)
+        .setDepth(bottom + 0.01);
 }
 
 //  Adds a raised pressure plate on tile p, centred across the tile with its bottom edge
@@ -130,8 +137,8 @@ export function addPlayer (scene: Scene, p: GridPoint): GameObjects.Sprite
 
 //  Builds a tilemap and entity sprites from parsed level data, and makes the camera follow the player.
 //  armedTraps: indices into data.traps of traps already armed (in a level picked up where it was left).
-//  Requires the 'tiles' and 'goal' textures from generateTextures(), and the 'player', plate,
-//  door and trap spritesheets and 'boulder' image loaded in the Preloader.
+//  Requires the 'tiles' texture from generateTextures(), and the 'player', plate, door and trap
+//  spritesheets and 'boulder' and 'goal' images loaded in the Preloader.
 export function buildLevel (scene: Scene, data: LevelData, armedTraps: readonly number[] = []): BuiltLevel
 {
     const map = scene.make.tilemap({

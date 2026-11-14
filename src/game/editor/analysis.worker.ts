@@ -285,7 +285,8 @@ function stateKey (player: number, cells: readonly number[]): string
 }
 
 //  Every tile the player could conceivably reach: the snow and ice connected to the start (any of
-//  it could become a stopping point, given the right boulders), plus the exit if it borders them.
+//  it could become a stopping point, given the right boulders), plus the exit if one of them is
+//  right below it (it's entered only from below).
 //  The search can stop once it has found all of these.
 function possibleTiles (level: LevelData): Set<number>
 {
@@ -307,10 +308,10 @@ function possibleTiles (level: LevelData): Set<number>
             const x = p.x + d.x;
             const y = p.y + d.y;
             const cell = y * width + x;
-            //  The exit stands on snow or ice, but nothing can pass through it
+            //  The exit is in a wall, entered only by moving up into it
             if (level.goal && x === level.goal.x && y === level.goal.y)
             {
-                exitBorders = true;
+                exitBorders ||= d.y === -1;
                 continue;
             }
             if (isGround(x, y) && !cells.has(cell))

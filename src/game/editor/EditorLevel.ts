@@ -1,5 +1,5 @@
 import { GridPoint, LevelData, LevelDraft } from '../levels/LevelParser';
-import { TileIndex } from '../levels/Tiles';
+import { isSouthFacingWall, TileIndex } from '../levels/Tiles';
 
 //  'erase' clears a cell completely; 'erase-entity' removes only what stands on it (the player, a
 //  boulder, plate, door or the exit), leaving the snow or ice
@@ -217,10 +217,11 @@ export class EditorLevel
                 break;
 
             case 'exit':
-                //  Only one exit, so this moves it; the snow or ice under it stays
-                this.makeGround(x, y);
-                this.clearEntity(x, y);
-                this.goal = { x, y };
+                //  Only one exit, so this moves it. It goes only in a wall with snow or ice below.
+                if (isSouthFacingWall(this.tiles, x, y))
+                {
+                    this.goal = { x, y };
+                }
                 break;
 
             case 'player':
@@ -347,7 +348,7 @@ export class EditorLevel
         }
         if (this.isGoalAt(x, y))
         {
-            return onIce ? 'X' : 'x';
+            return 'x';
         }
         if (this.hasBoulderAt(x, y))
         {
@@ -374,13 +375,20 @@ export class EditorLevel
         }
     }
 
-    //  Sets a tile. The player, boulders, plates, doors, traps and exit stand only on snow or ice, so any on a cell
-    //  that becomes something else are removed.
+    //  Sets a tile. The player, boulders, plates, doors and traps stand only on snow or ice, so any on a cell
+    //  that becomes something else are removed. The exit is removed once it's no longer in a
+    //  south-facing wall.
     private setTile (x: number, y: number, tile: TileIndex)
     {
+        const goal = this.goal;
         if (!isGround(tile))
         {
             this.clearEntity(x, y);
+        }
+        //  Painting wall over the exit keeps it
+        if (tile === TileIndex.Wall && samePoint(goal, { x, y }))
+        {
+            this.goal = goal;
         }
         //  Traps stand only on snow
         if (tile !== TileIndex.Floor)
@@ -388,6 +396,10 @@ export class EditorLevel
             this.traps.delete(cellKey(x, y));
         }
         this.tiles[y][x] = tile;
+        if (this.goal && !isSouthFacingWall(this.tiles, this.goal.x, this.goal.y))
+        {
+            this.goal = null;
+        }
     }
 
     //  Makes the cell snow unless it's already snow or ice (entities only stand on ground)
